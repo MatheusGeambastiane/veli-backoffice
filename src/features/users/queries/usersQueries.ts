@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersApi } from "@/features/users/api/usersApi";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
+import type { DashboardUsersParams } from "@/features/users/types/dashboardUser";
 
 export const usersKeys = {
   all: ["users"] as const,
   lists: () => [...usersKeys.all, "list"] as const,
   list: () => [...usersKeys.lists()] as const,
+  dashboard: () => [...usersKeys.all, "dashboard"] as const,
+  dashboardList: (params: DashboardUsersParams) => [...usersKeys.dashboard(), params] as const,
   details: () => [...usersKeys.all, "detail"] as const,
   detail: (id: string) => [...usersKeys.details(), id] as const,
 };
@@ -14,6 +17,14 @@ export function useUsersList() {
   return useQuery({
     queryKey: usersKeys.list(),
     queryFn: usersApi.list,
+  });
+}
+
+export function useDashboardUsersList(params: DashboardUsersParams) {
+  return useQuery({
+    queryKey: usersKeys.dashboardList(params),
+    queryFn: () => usersApi.listDashboard(params),
+    placeholderData: (previousData) => previousData,
   });
 }
 

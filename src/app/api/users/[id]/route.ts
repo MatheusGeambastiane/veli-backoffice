@@ -3,11 +3,12 @@ import { deleteUser, getUserById, updateUser } from "@/features/users/api/usersS
 import { userSchema } from "@/features/users/schemas/userSchema";
 
 type RouteContext = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, { params }: RouteContext) {
-  const user = getUserById(params.id);
+  const { id } = await params;
+  const user = getUserById(id);
   if (!user) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
@@ -15,6 +16,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 }
 
 export async function PUT(request: Request, { params }: RouteContext) {
+  const { id } = await params;
   const payload = await request.json();
   const parsed = userSchema.safeParse(payload);
 
@@ -22,7 +24,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
     return NextResponse.json({ message: "Invalid payload", errors: parsed.error.flatten() }, { status: 400 });
   }
 
-  const user = updateUser(params.id, parsed.data);
+  const user = updateUser(id, parsed.data);
   if (!user) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
@@ -31,7 +33,8 @@ export async function PUT(request: Request, { params }: RouteContext) {
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {
-  const user = deleteUser(params.id);
+  const { id } = await params;
+  const user = deleteUser(id);
   if (!user) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }

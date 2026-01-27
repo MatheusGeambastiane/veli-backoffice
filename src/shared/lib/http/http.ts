@@ -28,15 +28,33 @@ export class HttpError extends Error {
   }
 }
 
+async function getAccessToken() {
+  if (typeof window === "undefined") {
+    const { getServerSession } = await import("@/shared/auth/getServerSession");
+    const session = await getServerSession();
+    return session?.accessToken;
+  }
+
+  const { getSession } = await import("next-auth/react");
+  const session = await getSession();
+  return session?.accessToken;
+}
+
 export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {
   const baseUrl = options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "";
   const url = `${baseUrl}${path}`;
   const hasBody = typeof options.body !== "undefined";
   const isFormData = hasBody && options.body instanceof FormData;
-  const headers: HeadersInit = {
-    ...(isFormData ? {} : { "Content-Type": "application/json" }),
-    ...options.headers,
-  };
+  const accessToken = await getAccessToken().catch(() => undefined);
+  const headers = new Headers(options.headers);
+
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (accessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
 
   const response = await fetch(url, {
     method: options.method ?? "GET",
