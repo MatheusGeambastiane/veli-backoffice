@@ -67,6 +67,8 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [exerciseStep, setExerciseStep] = useState<"list" | "questions">("list");
   const deferredExerciseSearch = useDeferredValue(exerciseSearch.trim());
+  const supportInputRef = useRef<HTMLInputElement | null>(null);
+  const contentInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: moduleData, isLoading, isError } = useModuleDetails(moduleId);
   const { data: lessons = [], isFetching } = useModuleLessons(moduleId, {
@@ -170,7 +172,7 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-6 px-1 sm:px-1">
       <div className="flex flex-col gap-3">
         <Link
           href="/courses"
@@ -216,13 +218,13 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
 
           <fieldset className="rounded-3xl border border-border bg-card shadow-sm">
             <legend className="sr-only">Aulas do modulo</legend>
-            <div className="flex flex-col gap-4 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Aulas</p>
                 <h2 className="text-lg font-semibold text-foreground">Lista de aulas</h2>
               </div>
               <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
-                <div className="relative w-full max-w-sm">
+                <div className="relative w-full lg:max-w-sm">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={search}
@@ -232,7 +234,7 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
                     aria-label="Buscar aulas"
                   />
                 </div>
-                <label className="flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                <label className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm lg:w-auto">
                   <span className="text-xs uppercase tracking-wide">Modalidade</span>
                   <select
                     value={lessonType}
@@ -247,13 +249,17 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
                     ))}
                   </select>
                 </label>
-                <Button type="button" className="h-11 rounded-2xl" onClick={openLessonModal}>
+                <Button
+                  type="button"
+                  className="h-11 w-full rounded-2xl lg:w-auto"
+                  onClick={openLessonModal}
+                >
                   Adicionar aula
                 </Button>
               </div>
             </div>
 
-            <div className="px-6 py-5">
+            <div className="px-4 py-5 sm:px-6">
               {isFetching && (
                 <p className="text-xs text-primary">Atualizando resultados...</p>
               )}
@@ -387,15 +393,20 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Material de apoio</label>
                     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-3 py-3">
-                      <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                      <button
+                        type="button"
+                        onClick={() => supportInputRef.current?.click()}
+                        className="inline-flex w-fit items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
                         <FileText className="h-4 w-4" />
                         Subir arquivo
-                        <input
-                          type="file"
-                          onChange={(event) => setSupportMaterial(event.target.files?.[0] ?? null)}
-                          className="hidden"
-                        />
-                      </label>
+                      </button>
+                      <input
+                        ref={supportInputRef}
+                        type="file"
+                        onChange={(event) => setSupportMaterial(event.target.files?.[0] ?? null)}
+                        className="sr-only"
+                      />
                       {supportPreview && supportMaterial?.type === "application/pdf" && (
                         <iframe
                           title="Preview do PDF"
@@ -414,15 +425,20 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Conteudo da aula</label>
                     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-3 py-3">
-                      <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                      <button
+                        type="button"
+                        onClick={() => contentInputRef.current?.click()}
+                        className="inline-flex w-fit items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
                         <Film className="h-4 w-4" />
                         Subir arquivo
-                        <input
-                          type="file"
-                          onChange={(event) => setContentFile(event.target.files?.[0] ?? null)}
-                          className="hidden"
-                        />
-                      </label>
+                      </button>
+                      <input
+                        ref={contentInputRef}
+                        type="file"
+                        onChange={(event) => setContentFile(event.target.files?.[0] ?? null)}
+                        className="sr-only"
+                      />
                       {contentPreview && contentFile?.type.startsWith("video") && (
                         <video
                           src={contentPreview}
@@ -668,10 +684,10 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-1 items-center gap-4">
+      <div className="flex w-full items-start gap-4 sm:flex-1 sm:items-center">
         {isAsync ? (
           <div
-            className="relative h-20 w-32 overflow-hidden rounded-xl border border-border bg-muted"
+            className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:w-32"
             onMouseEnter={startPreview}
             onMouseLeave={stopPreview}
             onTouchStart={startPreview}
@@ -693,19 +709,19 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
             )}
           </div>
         ) : (
-          <div className="flex h-20 w-32 items-center justify-center rounded-xl border border-border bg-muted text-xs text-muted-foreground">
+          <div className="flex h-20 w-24 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xs text-muted-foreground sm:w-32">
             Ao vivo
           </div>
         )}
 
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{lesson.name}</p>
           <p className="text-xs text-muted-foreground">Ordem {lesson.order}</p>
         </div>
       </div>
 
       <span
-        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+        className={`w-full text-center sm:w-auto rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
           isAsync ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
         }`}
       >
