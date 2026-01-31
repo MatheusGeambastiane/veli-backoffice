@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { User as UserIcon } from "lucide-react";
+import { ChevronLeft, User as UserIcon } from "lucide-react";
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { useSessionUser } from "@/shared/auth/useSessionUser";
 
@@ -12,6 +13,7 @@ type TopbarProps = {
 };
 
 export function Topbar({ userName }: TopbarProps) {
+  const router = useRouter();
   const { user } = useSessionUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const displayName = useMemo(() => user?.name ?? userName ?? "Usuario", [user?.name, userName]);
@@ -19,9 +21,19 @@ export function Topbar({ userName }: TopbarProps) {
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
-      <div className="flex flex-col">
-        <span className="text-sm text-muted-foreground">Veli Backoffice</span>
-        <span className="text-lg font-semibold">Painel administrativo</span>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Voltar"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex flex-col">
+          <span className="text-sm text-muted-foreground">Veli Backoffice</span>
+          <span className="text-lg font-semibold">Painel administrativo</span>
+        </div>
       </div>
       <div className="relative flex items-center gap-3">
         <span className="hidden text-sm text-muted-foreground md:inline">{displayName}</span>

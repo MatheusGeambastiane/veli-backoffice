@@ -1,4 +1,4 @@
-import { EditUserPage } from "@/features/users/pages/EditUserPage";
+import { ModuleDetailsPage } from "@/features/courses/pages/ModuleDetailsPage";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { id } = await params;
-  return <EditUserPage userId={id} />;
+  return <ModuleDetailsPage moduleId={id} />;
 }

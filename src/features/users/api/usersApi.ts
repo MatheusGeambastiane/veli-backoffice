@@ -2,6 +2,11 @@ import { httpClient } from "@/shared/lib/http/http";
 import type { User } from "@/features/users/types/user";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
 import type { DashboardUsersParams, DashboardUsersResponse } from "@/features/users/types/dashboardUser";
+import type {
+  DashboardStudentProfileUpdatePayload,
+  DashboardTeacherProfileUpdatePayload,
+  DashboardUserDetails,
+} from "@/features/users/types/dashboardUserDetails";
 
 export const usersApi = {
   list: () => httpClient.get<User[]>("/api/users"),
@@ -23,6 +28,13 @@ export const usersApi = {
     const path = query ? `/dashboard/users/?${query}` : "/dashboard/users/";
     return httpClient.get<DashboardUsersResponse>(path);
   },
+  getDashboardById: (id: string) => httpClient.get<DashboardUserDetails>(`/dashboard/users/${id}/`),
+  updateDashboardUser: (id: string, payload: FormData) =>
+    httpClient.patch<DashboardUserDetails>(`/dashboard/users/${id}/`, payload),
+  patchTeacherProfile: (profileId: number, payload: DashboardTeacherProfileUpdatePayload) =>
+    httpClient.patch(`/dashboard/teacher-profiles/${profileId}/`, payload),
+  patchStudentProfile: (profileId: number, payload: DashboardStudentProfileUpdatePayload) =>
+    httpClient.patch(`/dashboard/student-profiles/${profileId}/`, payload),
   getById: (id: string) => httpClient.get<User>(`/api/users/${id}`),
   create: (payload: UserFormValues) => httpClient.post<User>("/api/users", payload),
   update: (id: string, payload: UserFormValues) =>

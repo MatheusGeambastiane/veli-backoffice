@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
@@ -57,7 +58,7 @@ function getLanguageMeta(language: DashboardLanguage | string) {
   return {
     key: String(language.id ?? language.code ?? language.name ?? "language"),
     label: language.name ?? language.code ?? "Idioma",
-    image: language.flag ?? language.image ?? null,
+    image: language.lang_icon ?? language.flag ?? language.image ?? null,
   };
 }
 
@@ -310,13 +311,13 @@ function UsersRow({ user }: { user: DashboardUser }) {
   return (
     <li className="px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto_auto] lg:items-center lg:gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+        <Link href={`/users/${user.id}`} className="flex min-w-0 items-center gap-3">
           <Avatar src={user.profile_pic} name={fullName} />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">{fullName}</p>
             <p className="truncate text-xs text-muted-foreground">{user.username}</p>
           </div>
-        </div>
+        </Link>
 
         <div className="text-sm text-muted-foreground">
           <span className="text-xs uppercase tracking-wide text-muted-foreground/80 lg:hidden">
@@ -352,13 +353,13 @@ function UsersRow({ user }: { user: DashboardUser }) {
         </div>
 
         <div className="flex justify-end">
-          <button
-            type="button"
+          <Link
+            href={`/users/${user.id}`}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            aria-label={`Abrir opcoes para ${fullName}`}
+            aria-label={`Abrir perfil de ${fullName}`}
           >
             <MoreHorizontal className="h-5 w-5" />
-          </button>
+          </Link>
         </div>
       </div>
     </li>

@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersApi } from "@/features/users/api/usersApi";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
 import type { DashboardUsersParams } from "@/features/users/types/dashboardUser";
+import type {
+  DashboardStudentProfileUpdatePayload,
+  DashboardTeacherProfileUpdatePayload,
+} from "@/features/users/types/dashboardUserDetails";
 
 export const usersKeys = {
   all: ["users"] as const,
@@ -9,6 +13,8 @@ export const usersKeys = {
   list: () => [...usersKeys.lists()] as const,
   dashboard: () => [...usersKeys.all, "dashboard"] as const,
   dashboardList: (params: DashboardUsersParams) => [...usersKeys.dashboard(), params] as const,
+  dashboardDetails: () => [...usersKeys.dashboard(), "detail"] as const,
+  dashboardDetail: (id: string) => [...usersKeys.dashboardDetails(), id] as const,
   details: () => [...usersKeys.all, "detail"] as const,
   detail: (id: string) => [...usersKeys.details(), id] as const,
 };
@@ -33,6 +39,49 @@ export function useUserById(id: string) {
     queryKey: usersKeys.detail(id),
     queryFn: () => usersApi.getById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useDashboardUserById(id: string) {
+  return useQuery({
+    queryKey: usersKeys.dashboardDetail(id),
+    queryFn: () => usersApi.getDashboardById(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useUpdateDashboardUser(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: FormData) => usersApi.updateDashboardUser(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.dashboardDetail(id) });
+    },
+  });
+}
+
+export function usePatchTeacherProfile(userId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { profileId: number; data: DashboardTeacherProfileUpdatePayload }) =>
+      usersApi.patchTeacherProfile(payload.profileId, payload.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.dashboardDetail(userId) });
+    },
+  });
+}
+
+export function usePatchStudentProfile(userId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { profileId: number; data: DashboardStudentProfileUpdatePayload }) =>
+      usersApi.patchStudentProfile(payload.profileId, payload.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.dashboardDetail(userId) });
+    },
   });
 }
 

@@ -6,6 +6,7 @@ export type DashboardLanguage = {
   name?: string;
   flag?: string | null;
   image?: string | null;
+  lang_icon?: string | null;
 };
 
 export type DashboardUser = {

@@ -1,4 +1,4 @@
-import { EditUserPage } from "@/features/users/pages/EditUserPage";
+import { CourseDetailsPage } from "@/features/courses/pages/CourseDetailsPage";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { id } = await params;
-  return <EditUserPage userId={id} />;
+  return <CourseDetailsPage courseId={id} />;
 }
