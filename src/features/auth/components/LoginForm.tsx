@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff } from "lucide-react";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schemas/loginSchema";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -13,6 +14,7 @@ import { Label } from "@/shared/components/ui/label";
 export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -63,7 +65,23 @@ export function LoginForm() {
             Esqueceu a senha?
           </button>
         </div>
-        <Input id="password" type="password" placeholder="Secret123!" {...register("password")} />
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Secret123!"
+            className="pr-11"
+            {...register("password")}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
         {errors.password ? (
           <p className="text-sm text-destructive">{errors.password.message}</p>
         ) : null}
