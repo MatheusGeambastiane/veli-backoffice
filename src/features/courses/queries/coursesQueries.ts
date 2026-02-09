@@ -32,6 +32,9 @@ export const coursesKeys = {
   ],
   exerciseDetails: () => [...coursesKeys.all, "exercise-detail"] as const,
   exerciseDetail: (id: string) => [...coursesKeys.exerciseDetails(), id] as const,
+  exercisesSimple: () => [...coursesKeys.all, "exercises-simple"] as const,
+  lessonDetails: () => [...coursesKeys.all, "lesson-detail"] as const,
+  lessonDetail: (id: string) => [...coursesKeys.lessonDetails(), id] as const,
   lists: () => [...coursesKeys.all, "list"] as const,
   list: (params: CoursesParams) => [...coursesKeys.lists(), params] as const,
   details: () => [...coursesKeys.all, "detail"] as const,
@@ -107,10 +110,26 @@ export function useExercisesList(params: {
   });
 }
 
+export function useExercisesSimpleList(enabled = true) {
+  return useQuery({
+    queryKey: coursesKeys.exercisesSimple(),
+    queryFn: () => coursesApi.listExercisesSimple(),
+    enabled,
+  });
+}
+
 export function useExerciseDetails(id: string) {
   return useQuery({
     queryKey: coursesKeys.exerciseDetail(id),
     queryFn: () => coursesApi.getExerciseById(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useLessonDetails(id: string) {
+  return useQuery({
+    queryKey: coursesKeys.lessonDetail(id),
+    queryFn: () => coursesApi.getLessonById(id),
     enabled: Boolean(id),
   });
 }
@@ -121,6 +140,18 @@ export function useCreateLesson() {
   return useMutation({
     mutationFn: (payload: FormData) => coursesApi.createLesson(payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: coursesKeys.moduleLessons() });
+    },
+  });
+}
+
+export function useUpdateLesson(lessonId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: FormData) => coursesApi.updateLesson(lessonId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: coursesKeys.lessonDetails() });
       queryClient.invalidateQueries({ queryKey: coursesKeys.moduleLessons() });
     },
   });

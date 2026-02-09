@@ -7,6 +7,7 @@ import type {
   CoursesResponse,
   ExercisesResponse,
   LanguageLevelsResponse,
+  LessonDetails,
   Lesson,
   ModuleListItem,
   ModuleDetails,
@@ -84,6 +85,10 @@ export const coursesApi = {
     const path = query ? `/dashboard/exercises/?${query}` : "/dashboard/exercises/";
     return httpClient.get<ExercisesResponse>(path);
   },
+  listExercisesSimple: () => httpClient.get<Exercise[]>("/dashboard/exercises/simple/"),
   getExerciseById: (id: string) => httpClient.get<Exercise>(`/dashboard/exercises/${id}/`),
+  getLessonById: (id: string) => httpClient.get<LessonDetails>(`/dashboard/lessons/${id}/`),
   createLesson: (payload: FormData) => httpClient.post<Lesson>("/dashboard/lessons/", payload),
+  updateLesson: (id: string, payload: FormData) =>
+    httpClient.patch<LessonDetails>(`/dashboard/lessons/${id}/`, payload),
 };

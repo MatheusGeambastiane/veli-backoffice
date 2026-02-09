@@ -124,6 +124,11 @@ export type Lesson = {
   is_weekly: boolean;
 };
 
+export type LessonDetails = Omit<Lesson, "exercise"> & {
+  exercise: Exercise | null;
+  description?: string | null;
+};
+
 export type ExerciseQuestion = {
   id: number;
   statement: string;

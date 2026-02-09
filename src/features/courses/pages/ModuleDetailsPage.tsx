@@ -270,7 +270,7 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
               ) : (
                 <ul className="space-y-3">
                   {lessons.map((lesson) => (
-                    <LessonRow key={lesson.id} lesson={lesson} />
+                    <LessonRow key={lesson.id} lesson={lesson} moduleId={moduleId} />
                   ))}
                 </ul>
               )}
@@ -657,7 +657,7 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
   );
 }
 
-function LessonRow({ lesson }: { lesson: Lesson }) {
+function LessonRow({ lesson, moduleId }: { lesson: Lesson; moduleId: string }) {
   const previewRef = useRef<HTMLVideoElement | null>(null);
   const previewTimeout = useRef<number | null>(null);
   const isAsync = lesson.lesson_type === "asynchronous";
@@ -683,50 +683,55 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
   }
 
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex w-full items-start gap-4 sm:flex-1 sm:items-center">
-        {isAsync ? (
-          <div
-            className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:w-32"
-            onMouseEnter={startPreview}
-            onMouseLeave={stopPreview}
-            onTouchStart={startPreview}
-            onTouchEnd={stopPreview}
-          >
-            {lesson.content ? (
-              <video
-                ref={previewRef}
-                src={lesson.content}
-                className="h-full w-full object-cover"
-                muted
-                playsInline
-                preload="metadata"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                Sem video
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex h-20 w-24 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xs text-muted-foreground sm:w-32">
-            Ao vivo
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{lesson.name}</p>
-          <p className="text-xs text-muted-foreground">Ordem {lesson.order}</p>
-        </div>
-      </div>
-
-      <span
-        className={`w-full text-center sm:w-auto rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-          isAsync ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-        }`}
+    <li>
+      <Link
+        href={`/courses/modules/${moduleId}/lessons/${lesson.id}`}
+        className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-4 py-4 shadow-sm transition-colors hover:bg-accent/60 sm:flex-row sm:items-center sm:justify-between"
       >
-        {label}
-      </span>
+        <div className="flex w-full items-start gap-4 sm:flex-1 sm:items-center">
+          {isAsync ? (
+            <div
+              className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:w-32"
+              onMouseEnter={startPreview}
+              onMouseLeave={stopPreview}
+              onTouchStart={startPreview}
+              onTouchEnd={stopPreview}
+            >
+              {lesson.content ? (
+                <video
+                  ref={previewRef}
+                  src={lesson.content}
+                  className="h-full w-full object-cover"
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                  Sem video
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex h-20 w-24 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xs text-muted-foreground sm:w-32">
+              Ao vivo
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-foreground">{lesson.name}</p>
+            <p className="text-xs text-muted-foreground">Ordem {lesson.order}</p>
+          </div>
+        </div>
+
+        <span
+          className={`w-full text-center sm:w-auto rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+            isAsync ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {label}
+        </span>
+      </Link>
     </li>
   );
 }
