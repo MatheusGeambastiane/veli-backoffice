@@ -2,9 +2,18 @@ import { httpClient } from "@/shared/lib/http/http";
 import type {
   ClassSubscription,
   CreateSubscriptionPayload,
+  CourseSimple,
+  ClassSchedule,
+  GenerateSchedulePayload,
+  GenerateScheduleResponse,
+  LessonDoubt,
+  DoubtAnswer,
   StudentProfileSearchResponse,
   StudentClassDetails,
   StudentClassesResponse,
+  TeacherProfileSimple,
+  CreateDoubtAnswerPayload,
+  UpdateClassPayload,
   UpdateSubscriptionPayload,
 } from "@/features/classes/types/class";
 
@@ -28,6 +37,35 @@ export const classesApi = {
   },
   details: (id: string) => {
     return httpClient.get<StudentClassDetails>(`/dashboard/student-classes/${id}/`);
+  },
+  update: (id: string, payload: UpdateClassPayload) => {
+    return httpClient.patch<StudentClassDetails>(`/dashboard/student-classes/${id}/`, payload);
+  },
+  coursesSimple: () => {
+    return httpClient.get<CourseSimple[]>("/dashboard/courses/simple/");
+  },
+  teacherProfilesSimple: () => {
+    return httpClient.get<TeacherProfileSimple[]>("/dashboard/teacher-profiles/simple/");
+  },
+  scheduleByClass: (id: string) => {
+    return httpClient.get<ClassSchedule>(`/dashboard/schedules/by_class/${id}/`);
+  },
+  generateSchedule: (payload: GenerateSchedulePayload) => {
+    return httpClient.post<GenerateScheduleResponse>("/dashboard/schedules/generate/", payload);
+  },
+  eventDetails: (id: string) => {
+    return httpClient.get<ClassSchedule["events"][number]>(`/dashboard/events/${id}/`);
+  },
+  updateEvent: (id: string, payload: FormData) => {
+    return httpClient.patch<ClassSchedule["events"][number]>(`/dashboard/events/${id}/`, payload);
+  },
+  lessonDoubtsByClass: (id: string) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("student_class", id);
+    return httpClient.get<LessonDoubt[]>(`/dashboard/lesson-doubts/?${searchParams.toString()}`);
+  },
+  createDoubtAnswer: (payload: CreateDoubtAnswerPayload) => {
+    return httpClient.post<DoubtAnswer>("/dashboard/doubt-answers/", payload);
   },
   subscriptionsByClass: (id: string, params?: { search?: string }) => {
     const searchParams = new URLSearchParams();

@@ -7,7 +7,7 @@ export type StudentClass = {
   teacher_full_name: string | null;
   teacher_profile_pic_url: string | null;
   total_students: number;
-  next_class?: string | null;
+  next_class?: string | ScheduleEvent | null;
   start_date: string;
   finish_date: string;
   time: string;
@@ -20,7 +20,7 @@ export type StudentClass = {
 };
 
 export type StudentClassDetails = StudentClass & {
-  next_class: string | null;
+  next_class: string | ScheduleEvent | null;
 };
 
 export type StudentClassesResponse = {
@@ -28,6 +28,16 @@ export type StudentClassesResponse = {
   next: string | null;
   previous: string | null;
   results: StudentClass[];
+};
+
+export type CourseSimple = {
+  id: number;
+  name: string;
+};
+
+export type TeacherProfileSimple = {
+  id: number;
+  full_name: string;
 };
 
 export type SubscriptionStudent = {
@@ -90,9 +100,105 @@ export type UpdateSubscriptionPayload = {
   status: SubscriptionStatus;
 };
 
+export type UpdateClassPayload = {
+  course: number;
+  teacher_profile: number | null;
+  start_date: string;
+  finish_date: string;
+  time: string;
+  days_of_week: string[];
+  is_active: boolean;
+  duration: number;
+  classroom_link?: string | null;
+};
+
 export type StudentProfileSearchResponse = {
   count: number;
   next: string | null;
   previous: string | null;
   results: StudentProfileSearchResult[];
+};
+
+export type ScheduleLesson = {
+  id: number;
+  name: string;
+  order: number;
+  lesson_type: "live" | "asynchronous" | string;
+  support_material: string | null;
+  description: string | null;
+  content: string | null;
+  is_weekly: boolean;
+  exercise: number | null;
+  module: number;
+};
+
+export type ScheduleModule = {
+  id: number;
+  name: string;
+  order: number;
+  image: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScheduleEvent = {
+  id: number;
+  lesson: ScheduleLesson;
+  module: ScheduleModule;
+  scheduled_datetime: string;
+  classroom_link: string;
+  event_recorded_link: string;
+  lesson_content: string | null;
+  class_notice: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClassSchedule = {
+  id: number;
+  student_class: number;
+  schedule_id: number;
+  events: ScheduleEvent[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type GenerateSchedulePayload = {
+  student_class: number;
+};
+
+export type GenerateScheduleResponse = {
+  detail: string;
+};
+
+export type DoubtAnswer = {
+  id: number;
+  comment: string;
+  teacher_profile: number;
+  teacher_name: string;
+  teacher_profile_pic: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LessonDoubt = {
+  id: number;
+  registration: number;
+  student_profile_id: number;
+  student_class_id: number;
+  student_full_name: string;
+  student_profile_pic: string | null;
+  lesson: number;
+  lesson_name: string;
+  comment: string;
+  created_by: number;
+  updated_by: number;
+  created_at: string;
+  updated_at: string;
+  doubt_answers: DoubtAnswer[];
+};
+
+export type CreateDoubtAnswerPayload = {
+  lesson_doubt: number;
+  comment: string;
 };
