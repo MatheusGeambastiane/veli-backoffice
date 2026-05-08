@@ -877,7 +877,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
               </div>
               <div className="rounded-3xl border border-border bg-card px-5 py-6 shadow-sm">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Proxima aula
+                  Próxima aula
                 </p>
                 <p className="mt-2 text-lg font-semibold text-foreground">
                   {formatNextClass(data.next_class)}

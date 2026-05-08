@@ -2,6 +2,7 @@ import { httpClient } from "@/shared/lib/http/http";
 import type {
   ClassSubscription,
   CreateSubscriptionPayload,
+  CreateStudentClassPayload,
   CourseSimple,
   ClassSchedule,
   GenerateSchedulePayload,
@@ -46,6 +47,9 @@ export const classesApi = {
   },
   teacherProfilesSimple: () => {
     return httpClient.get<TeacherProfileSimple[]>("/dashboard/teacher-profiles/simple/");
+  },
+  create: (payload: CreateStudentClassPayload) => {
+    return httpClient.post<StudentClassDetails>("/dashboard/student-classes/", payload);
   },
   scheduleByClass: (id: string) => {
     return httpClient.get<ClassSchedule>(`/dashboard/schedules/by_class/${id}/`);

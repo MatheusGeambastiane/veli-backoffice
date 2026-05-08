@@ -44,22 +44,46 @@ export function useClassDetails(id: string) {
 
 export function useCoursesSimple() {
   const { status } = useSession();
+  const enabled = status === "authenticated";
 
   return useQuery({
     queryKey: classesKeys.coursesSimple(),
     queryFn: () => classesApi.coursesSimple(),
-    enabled: status === "authenticated",
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useCoursesSimpleOnDemand(enabled: boolean) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: classesKeys.coursesSimple(),
+    queryFn: () => classesApi.coursesSimple(),
+    enabled: status === "authenticated" && enabled,
     placeholderData: (previousData) => previousData,
   });
 }
 
 export function useTeacherProfilesSimple() {
   const { status } = useSession();
+  const enabled = status === "authenticated";
 
   return useQuery({
     queryKey: classesKeys.teacherProfilesSimple(),
     queryFn: () => classesApi.teacherProfilesSimple(),
-    enabled: status === "authenticated",
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useTeacherProfilesSimpleOnDemand(enabled: boolean) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: classesKeys.teacherProfilesSimple(),
+    queryFn: () => classesApi.teacherProfilesSimple(),
+    enabled: status === "authenticated" && enabled,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -196,6 +220,19 @@ export function useUpdateClassDetails(classId: string) {
       queryClient.invalidateQueries({
         queryKey: classesKeys.details(classId),
       });
+      queryClient.invalidateQueries({
+        queryKey: classesKeys.all,
+      });
+    },
+  });
+}
+
+export function useCreateClass() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof classesApi.create>[0]) => classesApi.create(payload),
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: classesKeys.all,
       });

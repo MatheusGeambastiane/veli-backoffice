@@ -28,6 +28,7 @@ export type DashboardStudentClass = {
   start_date: string;
   finish_date: string;
   time: string;
+  classroom_link?: string | null;
 };
 
 export type DashboardClass = {
@@ -56,10 +57,37 @@ export type StudentsByActiveClass = {
   students_count: number;
 };
 
+export type BilledAmountByOffer = {
+  offer_id: number;
+  offer_name: string;
+  total_billed_amount: number;
+};
+
+export type BilledAmountByCampaign = {
+  campaign_id: number;
+  campaign_name: string;
+  total_billed_amount: number;
+};
+
+export type OrdersLast3Months = {
+  month: string;
+  total_orders: number;
+};
+
 export type DashboardSummary = {
   total_active_students: number;
   total_active_classes: number;
   next_class: DashboardClass | null;
   week_calendar: DashboardClass[];
   students_by_active_class: StudentsByActiveClass[];
+  total_active_orders?: number;
+  total_pending_orders?: number;
+  total_orders_today?: number;
+  total_orders_last_7_days?: number;
+  total_billed_amount?: number;
+  total_billed_amount_today?: number;
+  total_billed_amount_last_7_days?: number;
+  billed_amount_by_offer?: BilledAmountByOffer[];
+  billed_amount_by_campaign?: BilledAmountByCampaign[];
+  orders_last_3_months?: OrdersLast3Months[];
 };

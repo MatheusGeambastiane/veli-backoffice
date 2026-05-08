@@ -40,6 +40,16 @@ export type TeacherProfileSimple = {
   full_name: string;
 };
 
+export type CreateStudentClassPayload = {
+  course: number;
+  teacher_profile: number;
+  start_date: string;
+  finish_date: string;
+  time: string;
+  days_of_week: string[];
+  duration: number;
+};
+
 export type SubscriptionStudent = {
   full_name: string;
   user_id: number;

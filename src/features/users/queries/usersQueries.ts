@@ -3,6 +3,7 @@ import { usersApi } from "@/features/users/api/usersApi";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
 import type { DashboardUsersParams } from "@/features/users/types/dashboardUser";
 import type {
+  DashboardMyProfileUpdatePayload,
   DashboardStudentProfileUpdatePayload,
   DashboardTeacherProfileUpdatePayload,
 } from "@/features/users/types/dashboardUserDetails";
@@ -15,6 +16,7 @@ export const usersKeys = {
   dashboardList: (params: DashboardUsersParams) => [...usersKeys.dashboard(), params] as const,
   dashboardDetails: () => [...usersKeys.dashboard(), "detail"] as const,
   dashboardDetail: (id: string) => [...usersKeys.dashboardDetails(), id] as const,
+  myProfile: () => [...usersKeys.dashboard(), "me"] as const,
   details: () => [...usersKeys.all, "detail"] as const,
   detail: (id: string) => [...usersKeys.details(), id] as const,
 };
@@ -50,6 +52,13 @@ export function useDashboardUserById(id: string) {
   });
 }
 
+export function useMyProfile() {
+  return useQuery({
+    queryKey: usersKeys.myProfile(),
+    queryFn: usersApi.getMe,
+  });
+}
+
 export function useUpdateDashboardUser(id: string) {
   const queryClient = useQueryClient();
 
@@ -57,6 +66,28 @@ export function useUpdateDashboardUser(id: string) {
     mutationFn: (payload: FormData) => usersApi.updateDashboardUser(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: usersKeys.dashboardDetail(id) });
+    },
+  });
+}
+
+export function useUpdateMyProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: DashboardMyProfileUpdatePayload) => usersApi.updateMe(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.myProfile() });
+    },
+  });
+}
+
+export function useUpdateMyProfilePhoto() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: FormData) => usersApi.updateMeProfilePic(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.myProfile() });
     },
   });
 }

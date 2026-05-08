@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -16,8 +16,26 @@ export function Topbar({ userName }: TopbarProps) {
   const router = useRouter();
   const { user } = useSessionUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const displayName = useMemo(() => user?.name ?? userName ?? "Usuario", [user?.name, userName]);
   const profilePicUrl = user?.image ?? null;
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!menuRef.current || !event.target) return;
+      if (!menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+
+    if (isMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
@@ -35,7 +53,8 @@ export function Topbar({ userName }: TopbarProps) {
           <span className="text-lg font-semibold">Painel administrativo</span>
         </div>
       </div>
-      <div className="relative flex items-center gap-3">
+      <div className="relative flex items-center gap-3" ref={menuRef}>
+        <ThemeToggle />
         <span className="hidden text-sm text-muted-foreground md:inline">{displayName}</span>
         <button
           type="button"
@@ -70,9 +89,6 @@ export function Topbar({ userName }: TopbarProps) {
               >
                 Meu perfil
               </Link>
-              <div className="rounded-xl px-3 py-1.5">
-                <ThemeToggle />
-              </div>
               <button
                 type="button"
                 role="menuitem"

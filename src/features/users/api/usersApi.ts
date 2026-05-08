@@ -3,6 +3,7 @@ import type { User } from "@/features/users/types/user";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
 import type { DashboardUsersParams, DashboardUsersResponse } from "@/features/users/types/dashboardUser";
 import type {
+  DashboardMyProfileUpdatePayload,
   DashboardStudentProfileUpdatePayload,
   DashboardTeacherProfileUpdatePayload,
   DashboardUserDetails,
@@ -29,8 +30,13 @@ export const usersApi = {
     return httpClient.get<DashboardUsersResponse>(path);
   },
   getDashboardById: (id: string) => httpClient.get<DashboardUserDetails>(`/dashboard/users/${id}/`),
+  getMe: () => httpClient.get<DashboardUserDetails>("/dashboard/users/me/"),
   updateDashboardUser: (id: string, payload: FormData) =>
     httpClient.patch<DashboardUserDetails>(`/dashboard/users/${id}/`, payload),
+  updateMe: (payload: DashboardMyProfileUpdatePayload) =>
+    httpClient.patch<DashboardUserDetails>("/dashboard/users/me/", payload),
+  updateMeProfilePic: (payload: FormData) =>
+    httpClient.patch<DashboardUserDetails>("/dashboard/users/me/", payload),
   patchTeacherProfile: (profileId: number, payload: DashboardTeacherProfileUpdatePayload) =>
     httpClient.patch(`/dashboard/teacher-profiles/${profileId}/`, payload),
   patchStudentProfile: (profileId: number, payload: DashboardStudentProfileUpdatePayload) =>
