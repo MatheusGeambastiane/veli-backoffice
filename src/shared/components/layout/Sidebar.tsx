@@ -6,9 +6,13 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Poppins } from "next/font/google";
 import {
+  BriefcaseBusiness,
   BookOpen,
+  ChevronRight,
   GraduationCap,
   Home,
+  Layers3,
+  Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
   Users,
@@ -27,6 +31,12 @@ const navItems: NavItem[] = [
   { href: "/courses", label: "Cursos", icon: GraduationCap },
   { href: "/classes", label: "Turmas", icon: BookOpen },
 ];
+
+const financialItems: NavItem[] = [
+  { href: "/campaigns", label: "Campanhas", icon: Megaphone },
+  { href: "/offers", label: "Ofertas", icon: Layers3 },
+];
+const mobileNavItems = [...navItems, ...financialItems];
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -100,12 +110,57 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          <div className="mt-4 space-y-2">
+            {!isCollapsed ? (
+              <div className="px-3">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  <BriefcaseBusiness className="h-3.5 w-3.5" />
+                  Financeiro
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+                  <BriefcaseBusiness className="h-4 w-4" />
+                </span>
+              </div>
+            )}
+
+            {financialItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={[
+                    "group flex items-center rounded-2xl text-sm font-medium transition-all",
+                    isCollapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  ].join(" ")}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon className={isCollapsed ? "h-5 w-5" : "h-4 w-4"} />
+                  {!isCollapsed && (
+                    <>
+                      <span className="flex-1">{item.label}</span>
+                      <ChevronRight className="h-4 w-4 opacity-60 transition-transform group-hover:translate-x-0.5" />
+                    </>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       </aside>
 
       <nav className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4 md:hidden">
-        <div className="flex w-full max-w-[380px] items-center justify-between rounded-full border border-border/60 bg-card px-4 py-2.5 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]">
-          {navItems.map((item) => {
+        <div className="flex w-full max-w-[460px] items-center justify-between rounded-full border border-border/60 bg-card px-4 py-2.5 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]">
+          {mobileNavItems.map((item) => {
             const isActive =
               item.href === "/" ? pathname === item.href : pathname.startsWith(item.href);
             const Icon = item.icon;
