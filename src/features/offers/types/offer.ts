@@ -10,6 +10,18 @@ export type OfferCourse = {
   is_active?: boolean;
 };
 
+export type OfferCampaignDetail = {
+  id: number;
+  name: string;
+  start_date: string;
+  finish_date: string;
+  salles_target: string;
+  created_at: string;
+  updated_at: string;
+  created_by: number;
+  updated_by: number;
+};
+
 export type OfferCampaignRef =
   | {
       id: number;
@@ -36,6 +48,65 @@ export type OfferListParams = {
   name?: string;
   page?: number;
   pageSize?: number;
+};
+
+export type OfferStudentClass = {
+  id: number;
+  course: number;
+  course_name: string;
+  language_icon: string | null;
+  teacher_profile: number | null;
+  teacher_full_name: string | null;
+  start_date: string;
+  finish_date: string;
+  time: string;
+  days_of_week: string[];
+  duration: number;
+  classroom_link: string | null;
+  is_active: boolean;
+  is_generic: boolean;
+};
+
+export type OfferBillingOption = {
+  id: number;
+  code: string;
+  type: "one_time" | "recurring" | string;
+  cycle: "none" | "monthly" | string;
+  billing_method: "pix" | "credit_card" | string;
+  price: string;
+  allowed_installments: number[];
+  is_active?: boolean;
+};
+
+export type OfferOrdersByBillingOption = {
+  billing_option: Omit<OfferBillingOption, "allowed_installments" | "is_active">;
+  total_orders: number;
+};
+
+export type OfferDetail = {
+  id: number;
+  name: string;
+  campaign: OfferCampaignDetail | null;
+  student_classes: OfferStudentClass[];
+  courses: OfferCourse[];
+  access_days: number | null;
+  access_duration_days: number | null;
+  grace_period_days: number | null;
+  price: string;
+  is_active: boolean;
+  plan_type: "one_time" | "monthly" | string;
+  billing_interval_months: number | null;
+  allow_cash_discount: boolean;
+  cash_discount_type: string | null;
+  cash_discount_value: string | null;
+  billing_options: OfferBillingOption[];
+  total_billed_amount: string;
+  total_orders_count: number;
+  orders_by_billing_option: OfferOrdersByBillingOption[];
+  created_at: string;
+  updated_at: string;
+  created_by: number;
+  updated_by: number;
 };
 
 export type SimpleOfferCourse = {

@@ -695,7 +695,7 @@ function CampaignOptionsMenu({
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: globalThis.MouseEvent) {
       if (!dropdownRef.current || !event.target) return;
       if (!dropdownRef.current.contains(event.target as Node)) {
         onClose();

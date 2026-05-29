@@ -191,11 +191,14 @@ export function OffersPage() {
           <ul className="divide-y divide-border/80">
             {offers.map((offer) => (
               <li key={offer.id} className="px-4 py-3 sm:px-6">
-                <div className="grid gap-3 rounded-[1.6rem] border border-transparent bg-background/60 px-4 py-4 transition-all hover:border-orange-500/20 hover:bg-orange-500/[0.04] lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)] lg:items-center">
+                <Link
+                  href={`/offers/${offer.id}`}
+                  className="grid cursor-pointer gap-3 rounded-[1.6rem] border border-transparent bg-background/60 px-4 py-4 transition-all hover:border-orange-500/20 hover:bg-orange-500/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)] lg:items-center"
+                >
                   <DataCell label="Nome" value={offer.name} strong />
                   <DataCell label="Preco" value={formatCurrency(offer.price)} />
                   <DataCell label="Campanha" value={getCampaignLabel(offer.campaign)} />
-                </div>
+                </Link>
               </li>
             ))}
           </ul>

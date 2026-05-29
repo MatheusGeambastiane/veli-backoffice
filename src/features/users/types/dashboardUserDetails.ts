@@ -36,6 +36,7 @@ export type DashboardTeacherProfile = {
 
 export type DashboardUserAddress = {
   id: number;
+  zip_code: string | null;
   street: string | null;
   address_number: string | null;
   neighborhood: string | null;
@@ -78,6 +79,7 @@ export type DashboardUserUpdatePayload = {
 export type DashboardMyProfileUpdatePayload = {
   user: DashboardUserUpdatePayload;
   address?: {
+    zip_code: string | null;
     street: string | null;
     address_number: string | null;
     neighborhood: string | null;

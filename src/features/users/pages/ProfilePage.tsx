@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { Camera, Check, Pencil, Shield, UserRound, X } from "lucide-react";
+import { Camera, Check, LoaderCircle, Pencil, Shield, UserRound, X } from "lucide-react";
 import { HttpError } from "@/shared/lib/http/http";
 import { cn } from "@/shared/lib/utils";
 import { Input } from "@/shared/components/ui/input";
@@ -45,6 +45,7 @@ type PersonalFormState = {
 };
 
 type AddressFormState = {
+  zip_code: string;
   street: string;
   address_number: string;
   neighborhood: string;
@@ -73,6 +74,7 @@ const DEFAULT_PERSONAL_FORM: PersonalFormState = {
 };
 
 const DEFAULT_ADDRESS_FORM: AddressFormState = {
+  zip_code: "",
   street: "",
   address_number: "",
   neighborhood: "",
@@ -161,6 +163,7 @@ export function ProfilePage() {
         role: normalizeRoleCode(personalForm.role),
       },
       address: {
+        zip_code: onlyDigits(addressForm.zip_code) || null,
         street: normalizeOptionalText(addressForm.street),
         address_number: normalizeOptionalText(addressForm.address_number),
         neighborhood: normalizeOptionalText(addressForm.neighborhood),
@@ -366,6 +369,70 @@ function PersonalAndAddressTab({
   setAddressForm: Dispatch<SetStateAction<AddressFormState>>;
   isEditing: boolean;
 }) {
+  const [cepLookupState, setCepLookupState] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
+  const [cepLookupMessage, setCepLookupMessage] = useState<string | null>(null);
+  const lastLoadedCepRef = useRef<string | null>(null);
+  const cepAbortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => cepAbortControllerRef.current?.abort();
+  }, []);
+
+  async function loadAddressByCep(cepDigits: string) {
+    if (lastLoadedCepRef.current === cepDigits) return;
+
+    cepAbortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    cepAbortControllerRef.current = abortController;
+    setCepLookupState("loading");
+    setCepLookupMessage(null);
+
+    try {
+      const address = await fetchViaCepAddress(cepDigits, abortController.signal);
+      if (abortController.signal.aborted) return;
+      lastLoadedCepRef.current = cepDigits;
+      setAddressForm((current) => ({
+        ...current,
+        street: address.street || current.street,
+        neighborhood: address.neighborhood || current.neighborhood,
+        city: address.city || current.city,
+        state: address.state || current.state,
+        country: address.country,
+      }));
+      setCepLookupState("success");
+      setCepLookupMessage("Endereco carregado pelo CEP.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setCepLookupState("error");
+      setCepLookupMessage(error instanceof Error ? error.message : "Nao foi possivel buscar o CEP.");
+    }
+  }
+
+  function handleCepChange(value: string) {
+    const nextCep = formatCep(value);
+    const nextCepDigits = onlyDigits(nextCep);
+    setAddressForm((current) => ({ ...current, zip_code: nextCep }));
+
+    if (!nextCepDigits) {
+      cepAbortControllerRef.current?.abort();
+      lastLoadedCepRef.current = null;
+      setCepLookupState("idle");
+      setCepLookupMessage(null);
+      return;
+    }
+
+    if (nextCepDigits.length < 8) {
+      cepAbortControllerRef.current?.abort();
+      setCepLookupState("idle");
+      setCepLookupMessage(null);
+      return;
+    }
+
+    void loadAddressByCep(nextCepDigits);
+  }
+
   return (
     <div className="space-y-8">
       <div className="space-y-4">
@@ -438,6 +505,39 @@ function PersonalAndAddressTab({
           <h2 className="text-base font-semibold text-foreground">Endereco</h2>
         </div>
         <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>CEP</Label>
+            {isEditing ? (
+              <>
+                <div className="relative">
+                  <Input
+                    value={addressForm.zip_code}
+                    placeholder="00000-000"
+                    inputMode="numeric"
+                    onChange={(event) => handleCepChange(event.target.value)}
+                    className="rounded-2xl pr-10"
+                  />
+                  {cepLookupState === "loading" && (
+                    <LoaderCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {cepLookupMessage && (
+                  <p
+                    className={cn(
+                      "text-xs",
+                      cepLookupState === "error" ? "text-destructive" : "text-muted-foreground"
+                    )}
+                  >
+                    {cepLookupMessage}
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                {addressForm.zip_code || "-"}
+              </div>
+            )}
+          </div>
           <Field
             label="Rua"
             value={addressForm.street}
@@ -732,9 +832,45 @@ function formatCnpj(value: string) {
   return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
 }
 
+function formatCep(value: string) {
+  const digits = onlyDigits(value).slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
 function normalizeOptionalText(value: string) {
   const normalized = value.trim();
   return normalized || null;
+}
+
+type ViaCepResponse = {
+  erro?: boolean;
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+};
+
+async function fetchViaCepAddress(cep: string, signal: AbortSignal) {
+  const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal });
+
+  if (!response.ok) {
+    throw new Error("Nao foi possivel buscar o CEP.");
+  }
+
+  const data = (await response.json()) as ViaCepResponse;
+
+  if (data.erro) {
+    throw new Error("CEP nao encontrado.");
+  }
+
+  return {
+    street: data.logradouro ?? "",
+    neighborhood: data.bairro ?? "",
+    city: data.localidade ?? "",
+    state: data.uf ?? "",
+    country: "Brasil",
+  };
 }
 
 function syncFormWithData(
@@ -756,6 +892,7 @@ function syncFormWithData(
   });
 
   setAddressForm({
+    zip_code: formatCep(data.address?.zip_code ?? ""),
     street: data.address?.street ?? "",
     address_number: data.address?.address_number ?? "",
     neighborhood: data.address?.neighborhood ?? "",

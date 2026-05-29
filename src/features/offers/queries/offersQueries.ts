@@ -6,6 +6,8 @@ import type { CreateOfferPayload, OfferListParams } from "@/features/offers/type
 export const offersKeys = {
   all: ["offers"] as const,
   list: (params: OfferListParams) => [...offersKeys.all, "list", params] as const,
+  details: () => [...offersKeys.all, "detail"] as const,
+  detail: (id: string) => [...offersKeys.details(), id] as const,
   coursesSimple: () => [...offersKeys.all, "courses-simple"] as const,
   studentClassesSimple: () => [...offersKeys.all, "student-classes-simple"] as const,
 };
@@ -18,6 +20,16 @@ export function useOffersList(params: OfferListParams) {
     queryFn: () => offersApi.list(params),
     enabled: status === "authenticated",
     placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useOfferDetails(id: string) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: offersKeys.detail(id),
+    queryFn: () => offersApi.details(id),
+    enabled: status === "authenticated" && Boolean(id),
   });
 }
 

@@ -1,6 +1,7 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type {
   CreateOfferPayload,
+  OfferDetail,
   OfferListParams,
   OfferListResponse,
   SimpleOfferClass,
@@ -27,6 +28,7 @@ export const offersApi = {
     const path = query ? `/dashboard/offers/?${query}` : "/dashboard/offers/";
     return httpClient.get<OfferListResponse>(path);
   },
+  details: (id: string) => httpClient.get<OfferDetail>(`/dashboard/offers/${id}/`),
   coursesSimple: () => httpClient.get<SimpleOfferCourse[]>("/dashboard/courses/simple/"),
   studentClassesSimple: () =>
     httpClient.get<SimpleOfferClass[]>("/dashboard/student-classes/simple/"),
