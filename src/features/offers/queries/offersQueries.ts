@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { offersApi } from "@/features/offers/api/offersApi";
-import type { CreateOfferPayload, OfferListParams } from "@/features/offers/types/offer";
+import type { CreateOfferPayload, OfferListParams, UpdateOfferPayload } from "@/features/offers/types/offer";
 
 export const offersKeys = {
   all: ["offers"] as const,
@@ -9,6 +9,7 @@ export const offersKeys = {
   details: () => [...offersKeys.all, "detail"] as const,
   detail: (id: string) => [...offersKeys.details(), id] as const,
   coursesSimple: () => [...offersKeys.all, "courses-simple"] as const,
+  campaignsSimple: () => [...offersKeys.all, "campaigns-simple"] as const,
   studentClassesSimple: () => [...offersKeys.all, "student-classes-simple"] as const,
 };
 
@@ -44,6 +45,17 @@ export function useOfferCoursesSimple() {
   });
 }
 
+export function useOfferCampaignsSimple() {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: offersKeys.campaignsSimple(),
+    queryFn: offersApi.campaignsSimple,
+    enabled: status === "authenticated",
+    placeholderData: (previousData) => previousData,
+  });
+}
+
 export function useOfferStudentClassesSimple() {
   const { status } = useSession();
 
@@ -64,6 +76,18 @@ export function useCreateOffer() {
       queryClient.invalidateQueries({
         queryKey: offersKeys.all,
       });
+    },
+  });
+}
+
+export function useUpdateOffer(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateOfferPayload) => offersApi.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: offersKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: offersKeys.all });
     },
   });
 }

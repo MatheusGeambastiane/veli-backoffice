@@ -30,6 +30,13 @@ export type StudentClassesResponse = {
   results: StudentClass[];
 };
 
+export type PaginatedResponse<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
 export type CourseSimple = {
   id: number;
   name: string;
@@ -127,6 +134,52 @@ export type StudentProfileSearchResponse = {
   next: string | null;
   previous: string | null;
   results: StudentProfileSearchResult[];
+};
+
+export type DailyActivity = {
+  id: number;
+  name: string;
+  statement: string;
+  category: string;
+  activity_type?: string;
+  video_yt_link?: string | null;
+  file?: string | null;
+  available_on?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: number | null;
+  updated_by?: number | null;
+};
+
+export type DailyActivitiesResponse = PaginatedResponse<DailyActivity>;
+
+export type MonthActivityListItem = {
+  id: number;
+  student_class: number;
+  student_class_name: string;
+  month: string;
+  daily_activities: number[];
+  created_at: string;
+  updated_at: string;
+  created_by: number | null;
+  updated_by: number | null;
+};
+
+export type MonthActivitiesResponse = PaginatedResponse<MonthActivityListItem>;
+
+export type MonthActivityDetails = Omit<MonthActivityListItem, "daily_activities"> & {
+  daily_activities: Pick<DailyActivity, "id" | "name" | "statement">[];
+};
+
+export type CreateMonthActivityPayload = {
+  student_class: number;
+  month: string;
+  daily_activities: number[];
+};
+
+export type UpdateMonthActivityPayload = {
+  month: string;
+  daily_activities: number[];
 };
 
 export type ScheduleLesson = {

@@ -4,8 +4,10 @@ import type {
   OfferDetail,
   OfferListParams,
   OfferListResponse,
+  SimpleOfferCampaign,
   SimpleOfferClass,
   SimpleOfferCourse,
+  UpdateOfferPayload,
 } from "@/features/offers/types/offer";
 
 export const offersApi = {
@@ -30,7 +32,10 @@ export const offersApi = {
   },
   details: (id: string) => httpClient.get<OfferDetail>(`/dashboard/offers/${id}/`),
   coursesSimple: () => httpClient.get<SimpleOfferCourse[]>("/dashboard/courses/simple/"),
+  campaignsSimple: () => httpClient.get<SimpleOfferCampaign[]>("/dashboard/campaigns/simple/"),
   studentClassesSimple: () =>
     httpClient.get<SimpleOfferClass[]>("/dashboard/student-classes/simple/"),
   create: (payload: CreateOfferPayload) => httpClient.post("/dashboard/offers/", payload),
+  update: (id: string, payload: UpdateOfferPayload) =>
+    httpClient.patch<OfferDetail>(`/dashboard/offers/${id}/`, payload),
 };

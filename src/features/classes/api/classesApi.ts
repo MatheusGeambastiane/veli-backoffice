@@ -2,12 +2,16 @@ import { httpClient } from "@/shared/lib/http/http";
 import type {
   ClassSubscription,
   CreateSubscriptionPayload,
+  CreateMonthActivityPayload,
   CreateStudentClassPayload,
   CourseSimple,
   ClassSchedule,
+  DailyActivitiesResponse,
   GenerateSchedulePayload,
   GenerateScheduleResponse,
   LessonDoubt,
+  MonthActivitiesResponse,
+  MonthActivityDetails,
   DoubtAnswer,
   StudentProfileSearchResponse,
   StudentClassDetails,
@@ -15,6 +19,7 @@ import type {
   TeacherProfileSimple,
   CreateDoubtAnswerPayload,
   UpdateClassPayload,
+  UpdateMonthActivityPayload,
   UpdateSubscriptionPayload,
 } from "@/features/classes/types/class";
 
@@ -31,9 +36,7 @@ export const classesApi = {
       searchParams.set("page_size", String(params.page_size));
     }
     const query = searchParams.toString();
-    const path = query
-      ? `/dashboard/student-classes/?${query}`
-      : "/dashboard/student-classes/";
+    const path = query ? `/dashboard/student-classes/?${query}` : "/dashboard/student-classes/";
     return httpClient.get<StudentClassesResponse>(path);
   },
   details: (id: string) => {
@@ -54,6 +57,9 @@ export const classesApi = {
   scheduleByClass: (id: string) => {
     return httpClient.get<ClassSchedule>(`/dashboard/schedules/by_class/${id}/`);
   },
+  hasSchedule: (id: string) => {
+    return httpClient.get<boolean>(`/dashboard/student-classes/${id}/has-schedule/`);
+  },
   generateSchedule: (payload: GenerateSchedulePayload) => {
     return httpClient.post<GenerateScheduleResponse>("/dashboard/schedules/generate/", payload);
   },
@@ -67,6 +73,32 @@ export const classesApi = {
     const searchParams = new URLSearchParams();
     searchParams.set("student_class", id);
     return httpClient.get<LessonDoubt[]>(`/dashboard/lesson-doubts/?${searchParams.toString()}`);
+  },
+  monthActivitiesByClass: (id: string) => {
+    return httpClient.get<MonthActivitiesResponse>(
+      `/dashboard/month-activities/student-class/${id}/`,
+    );
+  },
+  monthActivityDetails: (id: string) => {
+    return httpClient.get<MonthActivityDetails>(`/dashboard/month-activities/${id}/`);
+  },
+  dailyActivities: (params: { search?: string; page?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params.search) {
+      searchParams.set("search", params.search);
+    }
+    if (params.page && params.page > 1) {
+      searchParams.set("page", String(params.page));
+    }
+    const query = searchParams.toString();
+    const path = query ? `/dashboard/daily-activities/?${query}` : "/dashboard/daily-activities/";
+    return httpClient.get<DailyActivitiesResponse>(path);
+  },
+  createMonthActivity: (payload: CreateMonthActivityPayload) => {
+    return httpClient.post<MonthActivityDetails>("/dashboard/month-activities/", payload);
+  },
+  updateMonthActivity: (id: string, payload: UpdateMonthActivityPayload) => {
+    return httpClient.patch<MonthActivityDetails>(`/dashboard/month-activities/${id}/`, payload);
   },
   createDoubtAnswer: (payload: CreateDoubtAnswerPayload) => {
     return httpClient.post<DoubtAnswer>("/dashboard/doubt-answers/", payload);

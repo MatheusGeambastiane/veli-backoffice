@@ -4,6 +4,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -31,17 +32,24 @@ import {
   useCoursesSimple,
   useCreateClassSubscription,
   useCreateDoubtAnswer,
+  useCreateMonthActivity,
+  useDailyActivities,
   useDeleteSubscription,
   useEventDetails,
   useGenerateSchedule,
+  useHasSchedule,
   useLessonDoubtsByClass,
+  useMonthActivitiesByClass,
+  useMonthActivityDetails,
   useSearchStudentProfiles,
   useScheduleByClass,
   useTeacherProfilesSimple,
   useUpdateClassDetails,
   useUpdateEvent,
+  useUpdateMonthActivity,
   useUpdateSubscriptionStatus,
 } from "@/features/classes/queries/classesQueries";
+import type { MonthActivityListItem } from "@/features/classes/types/class";
 
 type ClassDetailsPageProps = {
   classId: string;
@@ -70,9 +78,25 @@ const DAYS_OF_WEEK_OPTIONS = [
 const TABS = [
   { id: "matriculas", label: "Matrículas", icon: Users },
   { id: "cronograma", label: "Cronograma", icon: ScrollText },
+  { id: "atividades-mes", label: "Atividades do mês", icon: CalendarDays },
   { id: "duvidas", label: "Dúvidas", icon: HelpCircle },
   { id: "certificados", label: "Certificados", icon: GraduationCap },
 ] as const;
+
+const MONTHS = [
+  "Janeiro",
+  "Fevereiro",
+  "Marco",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 type TabId = (typeof TABS)[number]["id"];
 
@@ -97,13 +121,14 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [isDaysModalOpen, setIsDaysModalOpen] = useState(false);
   const [classroomLink, setClassroomLink] = useState("");
-  const [selectedScheduleEventId, setSelectedScheduleEventId] = useState<number | null>(
-    null
-  );
+  const [selectedScheduleEventId, setSelectedScheduleEventId] = useState<number | null>(null);
   const [openScheduleEventId, setOpenScheduleEventId] = useState<number | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [eventFieldsEditable, setEventFieldsEditable] = useState<
-    Record<"scheduled_datetime" | "event_recorded_link" | "lesson_content" | "class_notice", boolean>
+    Record<
+      "scheduled_datetime" | "event_recorded_link" | "lesson_content" | "class_notice",
+      boolean
+    >
   >({
     scheduled_datetime: false,
     event_recorded_link: false,
@@ -116,25 +141,47 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const [eventLessonContentFile, setEventLessonContentFile] = useState<File | null>(null);
   const [eventSaveError, setEventSaveError] = useState<string | null>(null);
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
+  const [isCheckingGeneratedSchedule, setIsCheckingGeneratedSchedule] = useState(false);
+  const [isScheduleReadyNotificationOpen, setIsScheduleReadyNotificationOpen] = useState(false);
   const [activeCalendarIndex, setActiveCalendarIndex] = useState(0);
   const [expandedCalendarDayKey, setExpandedCalendarDayKey] = useState<string | null>(null);
   const [expandedDoubtAnswers, setExpandedDoubtAnswers] = useState<Record<number, boolean>>({});
   const [openReplyDoubtId, setOpenReplyDoubtId] = useState<number | null>(null);
   const [replyByDoubt, setReplyByDoubt] = useState<Record<number, string>>({});
-  const [replySubmittingByDoubt, setReplySubmittingByDoubt] = useState<Record<number, boolean>>(
-    {}
-  );
+  const [replySubmittingByDoubt, setReplySubmittingByDoubt] = useState<Record<number, boolean>>({});
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [monthActivitiesYear, setMonthActivitiesYear] = useState(new Date().getFullYear());
+  const [isCreateMonthActivityOpen, setIsCreateMonthActivityOpen] = useState(false);
+  const [createMonthValue, setCreateMonthValue] = useState("");
+  const [createSelectedActivityIds, setCreateSelectedActivityIds] = useState<number[]>([]);
+  const [createDailyActivitySearch, setCreateDailyActivitySearch] = useState("");
+  const deferredCreateDailyActivitySearch = useDeferredValue(createDailyActivitySearch.trim());
+  const [createDailyActivityPage, setCreateDailyActivityPage] = useState(1);
+  const [selectedMonthActivityId, setSelectedMonthActivityId] = useState<number | null>(null);
+  const [isMonthActivityDetailsOpen, setIsMonthActivityDetailsOpen] = useState(false);
+  const [isEditingMonthActivity, setIsEditingMonthActivity] = useState(false);
+  const [editMonthValue, setEditMonthValue] = useState("");
+  const [editSelectedActivityIds, setEditSelectedActivityIds] = useState<number[]>([]);
+  const [editSelectedActivities, setEditSelectedActivities] = useState<
+    { id: number; name: string; statement: string }[]
+  >([]);
+  const [isAddMonthActivitiesOpen, setIsAddMonthActivitiesOpen] = useState(false);
+  const [editDailyActivitySearch, setEditDailyActivitySearch] = useState("");
+  const deferredEditDailyActivitySearch = useDeferredValue(editDailyActivitySearch.trim());
+  const [editDailyActivityPage, setEditDailyActivityPage] = useState(1);
   const showLoading = status === "loading" || isLoading;
   const {
     data: subscriptions,
     isLoading: isSubscriptionsLoading,
     isError: isSubscriptionsError,
     isFetching: isSubscriptionsFetching,
-  } = useClassSubscriptions({
-    classId,
-    search: deferredStudentSearch || undefined,
-  });
+  } = useClassSubscriptions(
+    {
+      classId,
+      search: deferredStudentSearch || undefined,
+    },
+    activeTab === "matriculas",
+  );
   const searchStudents = useSearchStudentProfiles();
   const createSubscription = useCreateClassSubscription(classId);
   const updateSubscriptionStatus = useUpdateSubscriptionStatus(classId);
@@ -142,15 +189,41 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const coursesSimple = useCoursesSimple();
   const teacherProfilesSimple = useTeacherProfilesSimple();
   const updateClassDetails = useUpdateClassDetails(classId);
-  const scheduleByClass = useScheduleByClass(classId);
+  const scheduleByClass = useScheduleByClass(classId, activeTab === "cronograma");
   const generateSchedule = useGenerateSchedule();
-  const lessonDoubtsByClass = useLessonDoubtsByClass(classId);
+  const hasSchedule = useHasSchedule(classId);
+  const lessonDoubtsByClass = useLessonDoubtsByClass(classId, activeTab === "duvidas");
+  const monthActivitiesByClass = useMonthActivitiesByClass(classId, activeTab === "atividades-mes");
+  const monthActivityDetails = useMonthActivityDetails(
+    selectedMonthActivityId ? String(selectedMonthActivityId) : "",
+  );
+  const createDailyActivities = useDailyActivities(
+    {
+      search: deferredCreateDailyActivitySearch || undefined,
+      page: createDailyActivityPage,
+    },
+    isCreateMonthActivityOpen,
+  );
+  const editDailyActivities = useDailyActivities(
+    {
+      search: deferredEditDailyActivitySearch || undefined,
+      page: editDailyActivityPage,
+    },
+    isMonthActivityDetailsOpen && isEditingMonthActivity && isAddMonthActivitiesOpen,
+  );
+  const createMonthActivity = useCreateMonthActivity(classId);
+  const updateMonthActivity = useUpdateMonthActivity(
+    classId,
+    selectedMonthActivityId ? String(selectedMonthActivityId) : "",
+  );
   const createDoubtAnswer = useCreateDoubtAnswer(classId);
   const lessonContentInputRef = useRef<HTMLInputElement | null>(null);
+  const activeTabRef = useRef(activeTab);
+  const schedulePollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventDetails = useEventDetails(openScheduleEventId ? String(openScheduleEventId) : "");
   const updateEvent = useUpdateEvent(
     classId,
-    openScheduleEventId ? String(openScheduleEventId) : ""
+    openScheduleEventId ? String(openScheduleEventId) : "",
   );
 
   const daysOfWeekLabel = useMemo(() => {
@@ -162,7 +235,6 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     if (!selectedDays.length) return "Selecionar dias";
     return selectedDays.map((day) => DAYS_OF_WEEK_MAP[day] ?? day).join(", ");
   }, [selectedDays]);
-
 
   function formatTime(value?: string | null) {
     if (!value) return "Nao informado";
@@ -198,6 +270,40 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   function normalizeDate(value: string | null | undefined) {
     if (!value) return "";
     return value.length >= 10 ? value.slice(0, 10) : value;
+  }
+
+  function parseBrazilianDate(value: string) {
+    const [day, month, year] = value.split("/").map(Number);
+    if (!day || !month || !year) return null;
+    return { day, month, year };
+  }
+
+  function toMonthInputValue(value: string) {
+    const parsed = parseBrazilianDate(value);
+    if (!parsed) return "";
+    return `${parsed.year}-${String(parsed.month).padStart(2, "0")}`;
+  }
+
+  function toMonthPayload(value: string) {
+    return value ? `${value}-01` : "";
+  }
+
+  function parsePageFromUrl(value: string | null) {
+    if (!value) return null;
+    try {
+      const url = new URL(value);
+      const page = Number(url.searchParams.get("page"));
+      return Number.isFinite(page) && page > 0 ? page : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getMonthInputLabel(value: string) {
+    if (!value) return "Mes nao selecionado";
+    const [year, month] = value.split("-").map(Number);
+    if (!year || !month) return value;
+    return `${MONTHS[month - 1]} de ${year}`;
   }
 
   function syncFormWithData() {
@@ -302,13 +408,62 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         onSuccess: () => {
           setIsEditing(false);
         },
-      }
+      },
     );
+  }
+
+  function waitForScheduleCheck() {
+    return new Promise((resolve) => {
+      schedulePollingTimeoutRef.current = setTimeout(resolve, 10000);
+    });
+  }
+
+  function isGeneratedScheduleReady(response: unknown) {
+    if (typeof response === "boolean") return response;
+    if (response && typeof response === "object" && "has_schedule" in response) {
+      return Boolean((response as { has_schedule?: boolean }).has_schedule);
+    }
+    return false;
+  }
+
+  async function startSchedulePolling() {
+    setIsCheckingGeneratedSchedule(true);
+
+    for (let attempt = 1; attempt <= 8; attempt += 1) {
+      if (attempt > 1) {
+        await waitForScheduleCheck();
+      }
+
+      try {
+        const response = await hasSchedule.mutateAsync();
+        if (!isGeneratedScheduleReady(response)) continue;
+
+        setIsCheckingGeneratedSchedule(false);
+        setScheduleMessage("Cronograma pronto.");
+
+        if (activeTabRef.current === "cronograma") {
+          await scheduleByClass.refetch();
+        } else {
+          setIsScheduleReadyNotificationOpen(true);
+        }
+        return;
+      } catch {
+        if (attempt === 8) {
+          setScheduleMessage("Nao foi possivel confirmar se o cronograma esta pronto.");
+        }
+      }
+    }
+
+    setScheduleMessage(
+      "A geracao do cronograma ainda nao foi confirmada. Tente atualizar em alguns instantes.",
+    );
+    setIsCheckingGeneratedSchedule(false);
   }
 
   function handleGenerateSchedule() {
     if (!data) return;
     setScheduleMessage(null);
+    setIsScheduleReadyNotificationOpen(false);
     generateSchedule.mutate(
       { student_class: data.id },
       {
@@ -318,9 +473,25 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
               ? response.detail
               : "Estamos gerando, quando tiver pronto voce sera notificado.";
           setScheduleMessage(detail);
+          void startSchedulePolling();
         },
-      }
+      },
     );
+  }
+
+  function handleChangeTab(tab: TabId) {
+    setActiveTab(tab);
+    setOpenStatusId(null);
+    setOpenOptionsId(null);
+    if (tab === "cronograma") {
+      setIsScheduleReadyNotificationOpen(false);
+    }
+  }
+
+  async function handleViewGeneratedSchedule() {
+    setActiveTab("cronograma");
+    setIsScheduleReadyNotificationOpen(false);
+    await scheduleByClass.refetch();
   }
 
   function toDatetimeLocal(value?: string | null) {
@@ -329,7 +500,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     if (Number.isNaN(date.getTime())) return "";
     const pad = (unit: number) => String(unit).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-      date.getHours()
+      date.getHours(),
     )}:${pad(date.getMinutes())}`;
   }
 
@@ -366,7 +537,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   }
 
   function handleEnableEventFieldEdit(
-    field: "scheduled_datetime" | "event_recorded_link" | "lesson_content" | "class_notice"
+    field: "scheduled_datetime" | "event_recorded_link" | "lesson_content" | "class_notice",
   ) {
     setEventFieldsEditable((current) => ({ ...current, [field]: true }));
   }
@@ -418,6 +589,35 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   }, [eventDetails.data]);
 
   useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!openStatusId && !openOptionsId) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.closest("[data-subscription-menu]")) return;
+      setOpenStatusId(null);
+      setOpenOptionsId(null);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openStatusId, openOptionsId]);
+
+  useEffect(() => {
+    return () => {
+      if (schedulePollingTimeoutRef.current) {
+        clearTimeout(schedulePollingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     setExpandedCalendarDayKey(null);
   }, [activeCalendarIndex]);
 
@@ -459,7 +659,145 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         onSettled: () => {
           setReplySubmittingByDoubt((current) => ({ ...current, [doubtId]: false }));
         },
+      },
+    );
+  }
+
+  function resetCreateMonthActivityState() {
+    setCreateMonthValue("");
+    setCreateSelectedActivityIds([]);
+    setCreateDailyActivitySearch("");
+    setCreateDailyActivityPage(1);
+  }
+
+  function handleOpenCreateMonthActivity() {
+    resetCreateMonthActivityState();
+    setCreateMonthValue(
+      `${monthActivitiesYear}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
+    );
+    setIsCreateMonthActivityOpen(true);
+  }
+
+  function handleCloseCreateMonthActivity() {
+    setIsCreateMonthActivityOpen(false);
+    resetCreateMonthActivityState();
+    createMonthActivity.reset();
+  }
+
+  function handleToggleCreateDailyActivity(id: number) {
+    setCreateSelectedActivityIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  }
+
+  function handleCreateDailyActivitySearchChange(value: string) {
+    setCreateDailyActivitySearch(value);
+    setCreateDailyActivityPage(1);
+  }
+
+  function handleCreateMonthActivity() {
+    if (!createMonthValue || !createSelectedActivityIds.length) return;
+    createMonthActivity.mutate(
+      {
+        student_class: Number(classId),
+        month: toMonthPayload(createMonthValue),
+        daily_activities: createSelectedActivityIds,
+      },
+      {
+        onSuccess: () => {
+          setMonthActivitiesYear(Number(createMonthValue.slice(0, 4)));
+          handleCloseCreateMonthActivity();
+        },
+      },
+    );
+  }
+
+  function handleOpenMonthActivityDetails(id: number) {
+    setSelectedMonthActivityId(id);
+    setIsMonthActivityDetailsOpen(true);
+    setIsEditingMonthActivity(false);
+    setIsAddMonthActivitiesOpen(false);
+    setEditDailyActivitySearch("");
+    setEditDailyActivityPage(1);
+  }
+
+  function handleCloseMonthActivityDetails() {
+    setIsMonthActivityDetailsOpen(false);
+    setSelectedMonthActivityId(null);
+    setIsEditingMonthActivity(false);
+    setEditMonthValue("");
+    setEditSelectedActivityIds([]);
+    setEditSelectedActivities([]);
+    setIsAddMonthActivitiesOpen(false);
+    setEditDailyActivitySearch("");
+    setEditDailyActivityPage(1);
+    updateMonthActivity.reset();
+  }
+
+  function handleStartEditMonthActivity() {
+    if (!monthActivityDetails.data) return;
+    setEditMonthValue(toMonthInputValue(monthActivityDetails.data.month));
+    setEditSelectedActivityIds(
+      monthActivityDetails.data.daily_activities.map((activity) => activity.id),
+    );
+    setEditSelectedActivities(monthActivityDetails.data.daily_activities);
+    setIsEditingMonthActivity(true);
+  }
+
+  function handleCancelEditMonthActivity() {
+    setIsEditingMonthActivity(false);
+    setEditMonthValue("");
+    setEditSelectedActivityIds([]);
+    setEditSelectedActivities([]);
+    setIsAddMonthActivitiesOpen(false);
+    setEditDailyActivitySearch("");
+    setEditDailyActivityPage(1);
+    updateMonthActivity.reset();
+  }
+
+  function handleRemoveEditDailyActivity(id: number) {
+    setEditSelectedActivityIds((current) => current.filter((item) => item !== id));
+    setEditSelectedActivities((current) => current.filter((item) => item.id !== id));
+  }
+
+  function handleToggleEditDailyActivity(activity: {
+    id: number;
+    name: string;
+    statement: string;
+  }) {
+    setEditSelectedActivityIds((current) => {
+      if (current.includes(activity.id)) {
+        return current.filter((item) => item !== activity.id);
       }
+      return [...current, activity.id];
+    });
+    setEditSelectedActivities((current) => {
+      if (current.some((item) => item.id === activity.id)) {
+        return current.filter((item) => item.id !== activity.id);
+      }
+      return [...current, activity];
+    });
+  }
+
+  function handleEditDailyActivitySearchChange(value: string) {
+    setEditDailyActivitySearch(value);
+    setEditDailyActivityPage(1);
+  }
+
+  function handleSaveMonthActivityEdit() {
+    if (!selectedMonthActivityId || !editMonthValue || !editSelectedActivityIds.length) return;
+    updateMonthActivity.mutate(
+      {
+        month: toMonthPayload(editMonthValue),
+        daily_activities: editSelectedActivityIds,
+      },
+      {
+        onSuccess: () => {
+          setMonthActivitiesYear(Number(editMonthValue.slice(0, 4)));
+          setIsEditingMonthActivity(false);
+          setIsAddMonthActivitiesOpen(false);
+        },
+      },
     );
   }
 
@@ -485,12 +823,34 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     !classTime ||
     selectedDays.length === 0;
 
+  const monthActivitiesByMonth = useMemo(() => {
+    const map = new Map<number, MonthActivityListItem>();
+    monthActivitiesByClass.data?.results.forEach((item) => {
+      const parsed = parseBrazilianDate(item.month);
+      if (!parsed || parsed.year !== monthActivitiesYear) return;
+      map.set(parsed.month, item);
+    });
+    return map;
+  }, [monthActivitiesByClass.data, monthActivitiesYear]);
+
+  const monthActivitiesCountForYear = monthActivitiesByMonth.size;
+  const createNextDailyActivityPage = parsePageFromUrl(createDailyActivities.data?.next ?? null);
+  const createPreviousDailyActivityPage = parsePageFromUrl(
+    createDailyActivities.data?.previous ?? null,
+  );
+  const editNextDailyActivityPage = parsePageFromUrl(editDailyActivities.data?.next ?? null);
+  const editPreviousDailyActivityPage = parsePageFromUrl(
+    editDailyActivities.data?.previous ?? null,
+  );
+  const isCreateMonthActivitySaveDisabled =
+    createMonthActivity.isPending || !createMonthValue || createSelectedActivityIds.length === 0;
+  const isEditMonthActivitySaveDisabled =
+    updateMonthActivity.isPending || !editMonthValue || editSelectedActivityIds.length === 0;
+
   const sortedScheduleEvents = useMemo(() => {
     if (!scheduleByClass.data?.events?.length) return [];
     return [...scheduleByClass.data.events].sort(
-      (a, b) =>
-        new Date(a.scheduled_datetime).getTime() -
-        new Date(b.scheduled_datetime).getTime()
+      (a, b) => new Date(a.scheduled_datetime).getTime() - new Date(b.scheduled_datetime).getTime(),
     );
   }, [scheduleByClass.data]);
 
@@ -513,15 +873,15 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
 
     return Array.from(monthMap.entries())
       .map(([key, events]) => {
-      const [year, month] = key.split("-").map(Number);
-      return {
-        key,
-        year,
-        month,
-        events,
-      };
+        const [year, month] = key.split("-").map(Number);
+        return {
+          key,
+          year,
+          month,
+          events,
+        };
       })
-      .sort((a, b) => (a.year - b.year) || (a.month - b.month));
+      .sort((a, b) => a.year - b.year || a.month - b.month);
   }, [sortedScheduleEvents]);
 
   const activeMonth = calendarMonths[activeCalendarIndex];
@@ -534,7 +894,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         acc[key].push(event);
         return acc;
       },
-      {} as Record<string, typeof sortedScheduleEvents>
+      {} as Record<string, typeof sortedScheduleEvents>,
     );
   }, [activeMonth, sortedScheduleEvents]);
   const hasEventFieldEditingEnabled = Object.values(eventFieldsEditable).some(Boolean);
@@ -545,8 +905,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     "detail" in scheduleByClass.error.details
       ? String(scheduleByClass.error.details.detail)
       : null;
-  const isScheduleMissing =
-    scheduleErrorDetail === "Cronograma não encontrado para esta turma.";
+  const isScheduleMissing = scheduleErrorDetail === "Cronograma não encontrado para esta turma.";
 
   function formatMonthLabel(year: number, month: number) {
     return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {
@@ -662,15 +1021,13 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                   )}
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Curso
-                      </p>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Curso</p>
                       {isEditing ? (
                         <select
                           value={selectedCourseId}
                           onChange={(event) =>
                             setSelectedCourseId(
-                              event.target.value ? Number(event.target.value) : ""
+                              event.target.value ? Number(event.target.value) : "",
                             )
                           }
                           className="mt-2 h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm font-semibold text-foreground focus:outline-none"
@@ -678,9 +1035,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                           disabled={coursesSimple.isLoading}
                         >
                           <option value="">
-                            {coursesSimple.isLoading
-                              ? "Carregando cursos..."
-                              : "Selecione o curso"}
+                            {coursesSimple.isLoading ? "Carregando cursos..." : "Selecione o curso"}
                           </option>
                           {coursesSimple.data?.map((course) => (
                             <option key={course.id} value={course.id}>
@@ -689,9 +1044,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                           ))}
                         </select>
                       ) : (
-                        <p className="text-xl font-semibold text-foreground">
-                          {data.course_name}
-                        </p>
+                        <p className="text-xl font-semibold text-foreground">{data.course_name}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -711,7 +1064,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                             value={selectedTeacherId}
                             onChange={(event) =>
                               setSelectedTeacherId(
-                                event.target.value ? Number(event.target.value) : ""
+                                event.target.value ? Number(event.target.value) : "",
                               )
                             }
                             className="mt-2 h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm font-semibold text-foreground focus:outline-none"
@@ -741,9 +1094,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
 
                 <span
                   className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                    data.is_active
-                      ? "bg-primary/10 text-primary"
-                      : "bg-muted text-muted-foreground"
+                    data.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {data.is_active ? "Turma ativa" : "Turma inativa"}
@@ -790,9 +1141,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                         className="mt-2 h-11 rounded-2xl"
                         aria-label="Horario da turma"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Duracao: {data.duration} min
-                      </p>
+                      <p className="text-xs text-muted-foreground">Duracao: {data.duration} min</p>
                     </div>
                   ) : (
                     <p className="text-sm font-semibold text-foreground">
@@ -810,9 +1159,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                       aria-label="Selecionar dias da semana"
                     >
                       <span>{selectedDaysLabel}</span>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Editar
-                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">Editar</span>
                     </button>
                   ) : (
                     <p className="text-sm font-semibold text-foreground">{daysOfWeekLabel}</p>
@@ -841,9 +1188,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                           {data.classroom_link}
                         </a>
                       ) : (
-                        <p className="text-sm font-semibold text-foreground">
-                          Nao informado
-                        </p>
+                        <p className="text-sm font-semibold text-foreground">Nao informado</p>
                       )}
                       <Button
                         type="button"
@@ -886,17 +1231,17 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
             </div>
 
             <div className="rounded-3xl border border-border bg-card p-3 shadow-sm">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleChangeTab(tab.id)}
                     className={cn(
                       "flex flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-4 text-center transition-colors",
                       activeTab === tab.id
                         ? "border-primary/30 bg-primary/10 text-primary"
-                        : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted/60"
+                        : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted/60",
                     )}
                   >
                     <tab.icon className="h-5 w-5" />
@@ -944,141 +1289,140 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                     </div>
                   )}
 
-                  {!isSubscriptionsLoading &&
-                    !isSubscriptionsError && (
-                      <div className="space-y-3">
-                        {isSubscriptionsFetching && (
-                          <p className="text-xs font-medium text-primary">
-                            Atualizando resultados...
-                          </p>
-                        )}
-                        {subscriptions?.length ? (
-                          <div className="space-y-3">
-                            <div className="hidden grid-cols-[minmax(0,1fr)_160px_80px] gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
-                              <span>Nome</span>
-                              <span>Status</span>
-                              <span>Opções</span>
-                            </div>
-                            <ul className="space-y-3">
-                              {subscriptions.map((subscription) => (
-                                <li
-                                  key={subscription.id}
-                                  className="grid gap-3 rounded-2xl border border-border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_160px_80px] sm:items-center"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-muted">
-                                      {subscription.student.profile_pic ? (
-                                        <img
-                                          src={subscription.student.profile_pic}
-                                          alt={subscription.student.full_name}
-                                          className="h-11 w-11 rounded-full object-cover"
-                                        />
-                                      ) : (
-                                        <User className="h-5 w-5 text-muted-foreground" />
-                                      )}
-                                    </div>
-                                    <p className="text-sm font-semibold text-foreground">
-                                      {subscription.student.full_name}
-                                    </p>
-                                  </div>
-                                  <div className="relative">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setOpenStatusId((current) =>
-                                          current === subscription.id ? null : subscription.id
-                                        )
-                                      }
-                                      className={cn(
-                                        "flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors",
-                                        statusClassMap[subscription.status]
-                                      )}
-                                      aria-haspopup="menu"
-                                      aria-expanded={openStatusId === subscription.id}
-                                    >
-                                      {statusLabelMap[subscription.status]}
-                                      </button>
-
-                                      {openStatusId === subscription.id && (
-                                        <div
-                                          className="absolute right-0 top-10 z-20 w-full min-w-[160px] rounded-2xl border border-border bg-card p-2 shadow-lg"
-                                          role="menu"
-                                        >
-                                        {(
-                                          [
-                                            "inscrito",
-                                            "estudando",
-                                            "finalizado",
-                                            "desistente",
-                                          ] as const
-                                        ).map((statusOption) => (
-                                          <button
-                                            key={statusOption}
-                                            type="button"
-                                            onClick={() => {
-                                              setOpenStatusId(null);
-                                              if (statusOption === subscription.status) return;
-                                              updateSubscriptionStatus.mutate({
-                                                id: subscription.id,
-                                                status: statusOption,
-                                              });
-                                            }}
-                                            className={cn(
-                                              "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide transition-colors",
-                                              statusOption === subscription.status
-                                                ? "bg-primary/10 text-primary"
-                                                : "hover:bg-accent/60 text-muted-foreground"
-                                            )}
-                                            role="menuitem"
-                                          >
-                                            {statusLabelMap[statusOption]}
-                                          </button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  <div className="relative flex justify-end">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setOpenOptionsId((current) =>
-                                          current === subscription.id ? null : subscription.id
-                                        )
-                                      }
-                                      className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                      aria-haspopup="menu"
-                                      aria-expanded={openOptionsId === subscription.id}
-                                      aria-label="Opções da matrícula"
-                                    >
-                                      <MoreVertical className="h-4 w-4" />
-                                    </button>
-                                    {openOptionsId === subscription.id && (
-                                      <div
-                                        className="absolute right-0 top-10 z-20 w-44 rounded-2xl border border-border bg-card p-2 shadow-lg"
-                                        role="menu"
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenDelete(subscription.id)}
-                                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-destructive transition-colors hover:bg-destructive/10"
-                                          role="menuitem"
-                                        >
-                                          Apagar matrícula
-                                        </button>
-                                      </div>
+                  {!isSubscriptionsLoading && !isSubscriptionsError && (
+                    <div className="space-y-3">
+                      {isSubscriptionsFetching && (
+                        <p className="text-xs font-medium text-primary">
+                          Atualizando resultados...
+                        </p>
+                      )}
+                      {subscriptions?.length ? (
+                        <div className="space-y-3">
+                          <div className="hidden grid-cols-[minmax(0,1fr)_160px_80px] gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+                            <span>Nome</span>
+                            <span>Status</span>
+                            <span>Opções</span>
+                          </div>
+                          <ul className="space-y-3">
+                            {subscriptions.map((subscription) => (
+                              <li
+                                key={subscription.id}
+                                className="grid gap-3 rounded-2xl border border-border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_160px_80px] sm:items-center"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-muted">
+                                    {subscription.student.profile_pic ? (
+                                      <img
+                                        src={subscription.student.profile_pic}
+                                        alt={subscription.student.full_name}
+                                        className="h-11 w-11 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <User className="h-5 w-5 text-muted-foreground" />
                                     )}
                                   </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
-                            Nenhum estudante encontrado para os filtros atuais.
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {subscription.student.full_name}
+                                  </p>
+                                </div>
+                                <div className="relative" data-subscription-menu>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setOpenStatusId((current) =>
+                                        current === subscription.id ? null : subscription.id,
+                                      )
+                                    }
+                                    className={cn(
+                                      "flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors",
+                                      statusClassMap[subscription.status],
+                                    )}
+                                    aria-haspopup="menu"
+                                    aria-expanded={openStatusId === subscription.id}
+                                  >
+                                    {statusLabelMap[subscription.status]}
+                                  </button>
+
+                                  {openStatusId === subscription.id && (
+                                    <div
+                                      className="absolute right-0 top-10 z-20 w-full min-w-[160px] rounded-2xl border border-border bg-card p-2 shadow-lg"
+                                      role="menu"
+                                    >
+                                      {(
+                                        [
+                                          "inscrito",
+                                          "estudando",
+                                          "finalizado",
+                                          "desistente",
+                                        ] as const
+                                      ).map((statusOption) => (
+                                        <button
+                                          key={statusOption}
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenStatusId(null);
+                                            if (statusOption === subscription.status) return;
+                                            updateSubscriptionStatus.mutate({
+                                              id: subscription.id,
+                                              status: statusOption,
+                                            });
+                                          }}
+                                          className={cn(
+                                            "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide transition-colors",
+                                            statusOption === subscription.status
+                                              ? "bg-primary/10 text-primary"
+                                              : "hover:bg-accent/60 text-muted-foreground",
+                                          )}
+                                          role="menuitem"
+                                        >
+                                          {statusLabelMap[statusOption]}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="relative flex justify-end" data-subscription-menu>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setOpenOptionsId((current) =>
+                                        current === subscription.id ? null : subscription.id,
+                                      )
+                                    }
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                    aria-haspopup="menu"
+                                    aria-expanded={openOptionsId === subscription.id}
+                                    aria-label="Opções da matrícula"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </button>
+                                  {openOptionsId === subscription.id && (
+                                    <div
+                                      className="absolute right-0 top-10 z-20 w-44 rounded-2xl border border-border bg-card p-2 shadow-lg"
+                                      role="menu"
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenDelete(subscription.id)}
+                                        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-destructive transition-colors hover:bg-destructive/10"
+                                        role="menuitem"
+                                      >
+                                        Apagar matrícula
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                          Nenhum estudante encontrado para os filtros atuais.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : activeTab === "cronograma" ? (
                 <div className="space-y-4">
@@ -1096,12 +1440,13 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                       onClick={handleGenerateSchedule}
                       disabled={
                         generateSchedule.isPending ||
-                        scheduleByClass.isLoading
+                        scheduleByClass.isLoading ||
+                        isCheckingGeneratedSchedule
                       }
                     >
-                      {generateSchedule.isPending
+                      {generateSchedule.isPending || isCheckingGeneratedSchedule
                         ? "Gerando..."
-                        : "Criar cronograma automaticamente"}
+                        : "Gerar calendário automaticamente"}
                     </Button>
                   </div>
 
@@ -1129,208 +1474,304 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                     </div>
                   )}
 
-                  {!scheduleByClass.isLoading &&
-                    !scheduleByClass.isError && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-foreground">
-                            Por calendario
-                          </p>
-                          {calendarMonths.length && activeMonth ? (
-                            <div className="space-y-4">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    setActiveCalendarIndex((current) =>
-                                      Math.max(0, current - 1)
-                                    )
-                                  }
-                                  disabled={activeCalendarIndex === 0}
-                                  className="h-8 w-8 rounded-full p-0"
-                                >
-                                  <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <p className="text-sm font-semibold text-foreground capitalize">
-                                  {formatMonthLabel(activeMonth.year, activeMonth.month)}
-                                </p>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    setActiveCalendarIndex((current) =>
-                                      Math.min(calendarMonths.length - 1, current + 1)
-                                    )
-                                  }
-                                  disabled={activeCalendarIndex >= calendarMonths.length - 1}
-                                  className="h-8 w-8 rounded-full p-0"
-                                >
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </div>
-
-                              <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold text-muted-foreground">
-                                {[
-                                  "Seg",
-                                  "Ter",
-                                  "Qua",
-                                  "Qui",
-                                  "Sex",
-                                  "Sab",
-                                  "Dom",
-                                ].map((label) => (
-                                  <div key={label} className="text-center">
-                                    {label}
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="grid grid-cols-7 gap-1">
-                                {buildCalendarDays(activeMonth.year, activeMonth.month).map(
-                                  (date, index) => {
-                                    if (!date) {
-                                      return (
-                                        <div
-                                          key={`empty-${activeMonth.key}-${index}`}
-                                          className="h-14 rounded-xl border border-dashed border-border/60 bg-muted/20"
-                                        />
-                                      );
-                                    }
-                                    const dayKey = getDayKey(date);
-                                    const events = eventsByDay[dayKey] ?? [];
-                                    const visibleEvents = events.slice(0, 2);
-                                    const hiddenEvents = events.slice(2);
-                                    const isDayExpanded = expandedCalendarDayKey === dayKey;
-                                    const displayedEvents = isDayExpanded ? events : visibleEvents;
-
-                                    return (
-                                      <div
-                                        key={dayKey}
-                                        className="flex min-h-[88px] flex-col gap-1 rounded-xl border border-border bg-background p-1.5"
-                                      >
-                                        <span className="text-[11px] font-semibold text-muted-foreground">
-                                          {date.getDate()}
-                                        </span>
-                                        <div className="flex flex-1 flex-col gap-0.5">
-                                          {displayedEvents.map((event) => {
-                                            const isSelected = selectedScheduleEventId === event.id;
-                                            const isLive = event.lesson.lesson_type === "live";
-                                            return (
-                                              <button
-                                                key={event.id}
-                                                type="button"
-                                                onClick={() => handleOpenCalendarEvent(event.id)}
-                                                className={cn(
-                                                  "truncate rounded-md px-1.5 py-0.5 text-left text-[9px] font-semibold transition-colors",
-                                                  isSelected
-                                                    ? "bg-primary/15 text-primary"
-                                                    : isLive
-                                                      ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                                                      : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                )}
-                                                title={event.lesson.name}
-                                              >
-                                                {event.lesson.name}
-                                              </button>
-                                            );
-                                          })}
-                                          {!isDayExpanded && hiddenEvents.length > 0 && (
-                                            <button
-                                              type="button"
-                                              onClick={() => setExpandedCalendarDayKey(dayKey)}
-                                              className="truncate rounded-md px-1.5 py-0.5 text-left text-[9px] font-semibold text-primary transition-colors hover:bg-primary/10"
-                                              aria-expanded={isDayExpanded}
-                                              aria-label={`Ver mais eventos de ${date.toLocaleDateString(
-                                                "pt-BR"
-                                              )}`}
-                                            >
-                                              +{hiddenEvents.length} mais
-                                            </button>
-                                          )}
-                                          {isDayExpanded && hiddenEvents.length > 0 && (
-                                            <button
-                                              type="button"
-                                              onClick={() => setExpandedCalendarDayKey(null)}
-                                              className="truncate rounded-md px-1.5 py-0.5 text-left text-[9px] font-semibold text-primary transition-colors hover:bg-primary/10"
-                                              aria-expanded={isDayExpanded}
-                                              aria-label={`Ocultar eventos de ${date.toLocaleDateString(
-                                                "pt-BR"
-                                              )}`}
-                                            >
-                                              Mostrar menos
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
-                              Nenhum evento encontrado para esta turma.
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-foreground">Lista</p>
-                            {selectedScheduleEventId && (
+                  {!scheduleByClass.isLoading && !scheduleByClass.isError && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-foreground">Por calendario</p>
+                        {calendarMonths.length && activeMonth ? (
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
                               <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => setSelectedScheduleEventId(null)}
+                                onClick={() =>
+                                  setActiveCalendarIndex((current) => Math.max(0, current - 1))
+                                }
+                                disabled={activeCalendarIndex === 0}
+                                className="h-8 w-8 rounded-full p-0"
                               >
-                                Ver todos
+                                <ChevronLeft className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                          {selectedScheduleEvents.length ? (
-                            <ul className="space-y-3">
-                              {selectedScheduleEvents.map((event) => {
-                                const isLive = event.lesson.lesson_type === "live";
-                                return (
-                                  <li
-                                    key={event.id}
-                                    className="cursor-pointer rounded-2xl border border-border bg-background px-4 py-3 transition-colors hover:bg-accent/40"
-                                    onClick={() => handleOpenEventModal(event.id)}
-                                  >
-                                    <p className="text-sm font-semibold text-foreground">
-                                      {event.lesson.name}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {new Date(event.scheduled_datetime).toLocaleString("pt-BR", {
-                                        dateStyle: "medium",
-                                        timeStyle: "short",
-                                      })}
-                                    </p>
-                                    <span
-                                      className={cn(
-                                        "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase",
-                                        isLive
-                                          ? "bg-blue-100 text-blue-800"
-                                          : "bg-emerald-100 text-emerald-800"
-                                      )}
-                                    >
-                                      {isLive ? "Ao vivo" : "Gravada"}
-                                    </span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          ) : (
-                            <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
-                              Nenhum evento selecionado.
+                              <p className="text-sm font-semibold text-foreground capitalize">
+                                {formatMonthLabel(activeMonth.year, activeMonth.month)}
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setActiveCalendarIndex((current) =>
+                                    Math.min(calendarMonths.length - 1, current + 1),
+                                  )
+                                }
+                                disabled={activeCalendarIndex >= calendarMonths.length - 1}
+                                className="h-8 w-8 rounded-full p-0"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
                             </div>
+
+                            <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold text-muted-foreground">
+                              {["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"].map((label) => (
+                                <div key={label} className="text-center">
+                                  {label}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                              {buildCalendarDays(activeMonth.year, activeMonth.month).map(
+                                (date, index) => {
+                                  if (!date) {
+                                    return (
+                                      <div
+                                        key={`empty-${activeMonth.key}-${index}`}
+                                        className="h-14 rounded-xl border border-dashed border-border/60 bg-muted/20"
+                                      />
+                                    );
+                                  }
+                                  const dayKey = getDayKey(date);
+                                  const events = eventsByDay[dayKey] ?? [];
+                                  const visibleEvents = events.slice(0, 2);
+                                  const hiddenEvents = events.slice(2);
+                                  const isDayExpanded = expandedCalendarDayKey === dayKey;
+                                  const displayedEvents = isDayExpanded ? events : visibleEvents;
+
+                                  return (
+                                    <div
+                                      key={dayKey}
+                                      className="flex min-h-[88px] flex-col gap-1 rounded-xl border border-border bg-background p-1.5"
+                                    >
+                                      <span className="text-[11px] font-semibold text-muted-foreground">
+                                        {date.getDate()}
+                                      </span>
+                                      <div className="flex flex-1 flex-col gap-0.5">
+                                        {displayedEvents.map((event) => {
+                                          const isSelected = selectedScheduleEventId === event.id;
+                                          const isLive = event.lesson.lesson_type === "live";
+                                          return (
+                                            <button
+                                              key={event.id}
+                                              type="button"
+                                              onClick={() => handleOpenCalendarEvent(event.id)}
+                                              className={cn(
+                                                "truncate rounded-md px-1.5 py-0.5 text-left text-[9px] font-semibold transition-colors",
+                                                isSelected
+                                                  ? "bg-primary/15 text-primary"
+                                                  : isLive
+                                                    ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                                    : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
+                                              )}
+                                              title={event.lesson.name}
+                                            >
+                                              {event.lesson.name}
+                                            </button>
+                                          );
+                                        })}
+                                        {!isDayExpanded && hiddenEvents.length > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedCalendarDayKey(dayKey)}
+                                            className="truncate rounded-md px-1.5 py-0.5 text-left text-[9px] font-semibold text-primary transition-colors hover:bg-primary/10"
+                                            aria-expanded={isDayExpanded}
+                                            aria-label={`Ver mais eventos de ${date.toLocaleDateString(
+                                              "pt-BR",
+                                            )}`}
+                                          >
+                                            +{hiddenEvents.length} mais
+                                          </button>
+                                        )}
+                                        {isDayExpanded && hiddenEvents.length > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedCalendarDayKey(null)}
+                                            className="truncate rounded-md px-1.5 py-0.5 text-left text-[9px] font-semibold text-primary transition-colors hover:bg-primary/10"
+                                            aria-expanded={isDayExpanded}
+                                            aria-label={`Ocultar eventos de ${date.toLocaleDateString(
+                                              "pt-BR",
+                                            )}`}
+                                          >
+                                            Mostrar menos
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                },
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                            Nenhum evento encontrado para esta turma.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">Lista</p>
+                          {selectedScheduleEventId && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedScheduleEventId(null)}
+                            >
+                              Ver todos
+                            </Button>
                           )}
                         </div>
+                        {selectedScheduleEvents.length ? (
+                          <ul className="space-y-3">
+                            {selectedScheduleEvents.map((event) => {
+                              const isLive = event.lesson.lesson_type === "live";
+                              return (
+                                <li
+                                  key={event.id}
+                                  className="cursor-pointer rounded-2xl border border-border bg-background px-4 py-3 transition-colors hover:bg-accent/40"
+                                  onClick={() => handleOpenEventModal(event.id)}
+                                >
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {event.lesson.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(event.scheduled_datetime).toLocaleString("pt-BR", {
+                                      dateStyle: "medium",
+                                      timeStyle: "short",
+                                    })}
+                                  </p>
+                                  <span
+                                    className={cn(
+                                      "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase",
+                                      isLive
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-emerald-100 text-emerald-800",
+                                    )}
+                                  >
+                                    {isLive ? "Ao vivo" : "Gravada"}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                            Nenhum evento selecionado.
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+              ) : activeTab === "atividades-mes" ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-foreground">Atividades do mês</p>
+                      <p className="text-sm text-muted-foreground">
+                        {monthActivitiesByClass.data?.count ?? 0} registro
+                        {monthActivitiesByClass.data?.count === 1 ? "" : "s"} encontrado
+                        {monthActivitiesByClass.data?.count === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <Button type="button" onClick={handleOpenCreateMonthActivity}>
+                      <Plus className="h-4 w-4" />
+                      Criar atividades do mês
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMonthActivitiesYear((current) => current - 1)}
+                      className="rounded-2xl"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    <p className="text-sm font-semibold text-foreground">
+                      Calendário de {monthActivitiesYear}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMonthActivitiesYear((current) => current + 1)}
+                      className="rounded-2xl"
+                    >
+                      Próximo
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {monthActivitiesByClass.isLoading && (
+                    <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                      Carregando atividades do mês...
+                    </div>
+                  )}
+
+                  {monthActivitiesByClass.isError && (
+                    <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                      Erro ao carregar atividades do mês.
+                    </div>
+                  )}
+
+                  {!monthActivitiesByClass.isLoading && !monthActivitiesByClass.isError && (
+                    <div className="space-y-3">
+                      {monthActivitiesCountForYear === 0 && (
+                        <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                          Nenhuma atividade cadastrada para {monthActivitiesYear}.
+                        </div>
+                      )}
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {MONTHS.map((monthName, index) => {
+                          const monthNumber = index + 1;
+                          const monthActivity = monthActivitiesByMonth.get(monthNumber);
+                          const activitiesCount = monthActivity?.daily_activities.length ?? 0;
+                          return (
+                            <button
+                              key={monthName}
+                              type="button"
+                              onClick={() => {
+                                if (!monthActivity) return;
+                                handleOpenMonthActivityDetails(monthActivity.id);
+                              }}
+                              disabled={!monthActivity}
+                              className={cn(
+                                "min-h-28 rounded-2xl border px-4 py-4 text-left transition-colors",
+                                monthActivity
+                                  ? "border-primary/30 bg-primary/10 hover:bg-primary/15"
+                                  : "border-border bg-background text-muted-foreground",
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {monthName}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {monthActivity
+                                      ? `${activitiesCount} atividade${
+                                          activitiesCount === 1 ? "" : "s"
+                                        }`
+                                      : "Sem atividades"}
+                                  </p>
+                                </div>
+                                {monthActivity && (
+                                  <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                                    Ativo
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : activeTab === "duvidas" ? (
                 <div className="space-y-4">
@@ -1522,6 +1963,526 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         )}
       </div>
 
+      {isScheduleReadyNotificationOpen && (
+        <div className="fixed right-4 top-4 z-50 w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-primary/30 bg-card p-4 shadow-xl">
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Cronograma pronto</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                O cronograma da turma foi gerado.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button type="button" size="sm" onClick={handleViewGeneratedSchedule}>
+                Ver cronograma
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCreateMonthActivityOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 px-4 py-10 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-month-activity-title"
+          onClick={handleCloseCreateMonthActivity}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-4xl space-y-5 overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Atividades do mês</p>
+                <h2
+                  id="create-month-activity-title"
+                  className="text-xl font-semibold text-foreground"
+                >
+                  Criar atividades do mês
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseCreateMonthActivity}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                aria-label="Fechar modal"
+              >
+                X
+              </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                <label
+                  htmlFor="create-month-activity-month"
+                  className="text-xs uppercase tracking-wide text-muted-foreground"
+                >
+                  Mês e ano
+                </label>
+                <Input
+                  id="create-month-activity-month"
+                  type="month"
+                  value={createMonthValue}
+                  onChange={(event) => setCreateMonthValue(event.target.value)}
+                  className="mt-2 h-11 rounded-2xl"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {getMonthInputLabel(createMonthValue)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Selecionadas
+                </p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {createSelectedActivityIds.length} atividade
+                  {createSelectedActivityIds.length === 1 ? "" : "s"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Input
+                value={createDailyActivitySearch}
+                onChange={(event) => handleCreateDailyActivitySearchChange(event.target.value)}
+                placeholder="Buscar atividades"
+                className="h-11 rounded-2xl"
+                aria-label="Buscar atividades diárias"
+              />
+
+              {createDailyActivities.isLoading && (
+                <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                  Carregando atividades...
+                </div>
+              )}
+
+              {createDailyActivities.isError && (
+                <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  Erro ao carregar atividades.
+                </div>
+              )}
+
+              {!createDailyActivities.isLoading &&
+                !createDailyActivities.isError &&
+                createDailyActivities.data?.results.length === 0 && (
+                  <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                    Nenhuma atividade encontrada.
+                  </div>
+                )}
+
+              {createDailyActivities.data && createDailyActivities.data.results.length > 0 && (
+                <fieldset className="max-h-[360px] space-y-3 overflow-y-auto rounded-2xl border border-border bg-background p-4">
+                  <legend className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Atividades
+                  </legend>
+                  <ul className="space-y-3">
+                    {createDailyActivities.data.results.map((activity) => {
+                      const isSelected = createSelectedActivityIds.includes(activity.id);
+                      return (
+                        <li
+                          key={activity.id}
+                          className="rounded-2xl border border-border bg-card px-4 py-3"
+                        >
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleCreateDailyActivity(activity.id)}
+                              className="mt-1 h-4 w-4 rounded border-border"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-foreground">
+                                {activity.name}
+                              </span>
+                              <span className="mt-1 block text-sm text-muted-foreground">
+                                {activity.statement}
+                              </span>
+                              <span className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold uppercase text-muted-foreground">
+                                {activity.category}
+                              </span>
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </fieldset>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Página {createDailyActivityPage}
+                  {createDailyActivities.isFetching ? " • Atualizando..." : ""}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCreateDailyActivityPage((current) =>
+                        Math.max(1, createPreviousDailyActivityPage ?? current - 1),
+                      )
+                    }
+                    disabled={!createPreviousDailyActivityPage && createDailyActivityPage <= 1}
+                    className="rounded-2xl"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCreateDailyActivityPage(
+                        (current) => createNextDailyActivityPage ?? current + 1,
+                      )
+                    }
+                    disabled={!createNextDailyActivityPage}
+                    className="rounded-2xl"
+                  >
+                    Próxima
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {createMonthActivity.isError && (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                Erro ao criar atividades do mês.
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleCloseCreateMonthActivity}
+                disabled={createMonthActivity.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCreateMonthActivity}
+                disabled={isCreateMonthActivitySaveDisabled}
+              >
+                {createMonthActivity.isPending ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isMonthActivityDetailsOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 px-4 py-10 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="month-activity-details-title"
+          onClick={handleCloseMonthActivityDetails}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-4xl space-y-5 overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Atividades do mês</p>
+                <h2
+                  id="month-activity-details-title"
+                  className="text-xl font-semibold text-foreground"
+                >
+                  {monthActivityDetails.data
+                    ? getMonthInputLabel(toMonthInputValue(monthActivityDetails.data.month))
+                    : "Detalhes"}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isEditingMonthActivity && monthActivityDetails.data && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleStartEditMonthActivity}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Editar
+                  </Button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCloseMonthActivityDetails}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label="Fechar modal"
+                >
+                  X
+                </button>
+              </div>
+            </div>
+
+            {monthActivityDetails.isLoading && (
+              <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                Carregando detalhes...
+              </div>
+            )}
+
+            {monthActivityDetails.isError && (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                Erro ao carregar detalhes das atividades.
+              </div>
+            )}
+
+            {!monthActivityDetails.isLoading &&
+              !monthActivityDetails.isError &&
+              monthActivityDetails.data && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Turma</p>
+                      <p className="mt-2 text-sm font-semibold text-foreground">
+                        {monthActivityDetails.data.student_class_name}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                      <label
+                        htmlFor="edit-month-activity-month"
+                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                      >
+                        Mês
+                      </label>
+                      {isEditingMonthActivity ? (
+                        <Input
+                          id="edit-month-activity-month"
+                          type="month"
+                          value={editMonthValue}
+                          onChange={(event) => setEditMonthValue(event.target.value)}
+                          className="mt-2 h-11 rounded-2xl"
+                        />
+                      ) : (
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                          {getMonthInputLabel(toMonthInputValue(monthActivityDetails.data.month))}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <fieldset className="space-y-3 rounded-2xl border border-border bg-background p-4">
+                    <legend className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Daily activities
+                    </legend>
+                    {(isEditingMonthActivity
+                      ? editSelectedActivities
+                      : monthActivityDetails.data.daily_activities
+                    ).length ? (
+                      <ul className="max-h-[320px] space-y-3 overflow-y-auto">
+                        {(isEditingMonthActivity
+                          ? editSelectedActivities
+                          : monthActivityDetails.data.daily_activities
+                        ).map((activity) => (
+                          <li
+                            key={activity.id}
+                            className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground">
+                                {activity.name}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {activity.statement}
+                              </p>
+                            </div>
+                            {isEditingMonthActivity && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveEditDailyActivity(activity.id)}
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                Remover
+                              </Button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma atividade selecionada.
+                      </p>
+                    )}
+                  </fieldset>
+
+                  {isEditingMonthActivity && (
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddMonthActivitiesOpen((current) => !current)}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar atividades
+                      </Button>
+
+                      {isAddMonthActivitiesOpen && (
+                        <div className="space-y-3 rounded-2xl border border-border bg-background p-4">
+                          <Input
+                            value={editDailyActivitySearch}
+                            onChange={(event) =>
+                              handleEditDailyActivitySearchChange(event.target.value)
+                            }
+                            placeholder="Buscar atividades"
+                            className="h-11 rounded-2xl"
+                            aria-label="Buscar atividades para adicionar"
+                          />
+
+                          {editDailyActivities.isLoading && (
+                            <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                              Carregando atividades...
+                            </div>
+                          )}
+
+                          {editDailyActivities.isError && (
+                            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                              Erro ao carregar atividades.
+                            </div>
+                          )}
+
+                          {!editDailyActivities.isLoading &&
+                            !editDailyActivities.isError &&
+                            editDailyActivities.data?.results.length === 0 && (
+                              <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                                Nenhuma atividade encontrada.
+                              </div>
+                            )}
+
+                          {editDailyActivities.data &&
+                            editDailyActivities.data.results.length > 0 && (
+                              <fieldset className="max-h-[320px] space-y-3 overflow-y-auto rounded-2xl border border-border bg-card p-4">
+                                <legend className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Atividades disponíveis
+                                </legend>
+                                <ul className="space-y-3">
+                                  {editDailyActivities.data.results.map((activity) => {
+                                    const isSelected = editSelectedActivityIds.includes(
+                                      activity.id,
+                                    );
+                                    return (
+                                      <li
+                                        key={activity.id}
+                                        className="rounded-2xl border border-border bg-background px-4 py-3"
+                                      >
+                                        <label className="flex cursor-pointer items-start gap-3">
+                                          <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() =>
+                                              handleToggleEditDailyActivity({
+                                                id: activity.id,
+                                                name: activity.name,
+                                                statement: activity.statement,
+                                              })
+                                            }
+                                            className="mt-1 h-4 w-4 rounded border-border"
+                                          />
+                                          <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-semibold text-foreground">
+                                              {activity.name}
+                                            </span>
+                                            <span className="mt-1 block text-sm text-muted-foreground">
+                                              {activity.statement}
+                                            </span>
+                                            <span className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold uppercase text-muted-foreground">
+                                              {activity.category}
+                                            </span>
+                                          </span>
+                                        </label>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </fieldset>
+                            )}
+
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-muted-foreground">
+                              Página {editDailyActivityPage}
+                              {editDailyActivities.isFetching ? " • Atualizando..." : ""}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setEditDailyActivityPage((current) =>
+                                    Math.max(1, editPreviousDailyActivityPage ?? current - 1),
+                                  )
+                                }
+                                disabled={
+                                  !editPreviousDailyActivityPage && editDailyActivityPage <= 1
+                                }
+                                className="rounded-2xl"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Anterior
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setEditDailyActivityPage(
+                                    (current) => editNextDailyActivityPage ?? current + 1,
+                                  )
+                                }
+                                disabled={!editNextDailyActivityPage}
+                                className="rounded-2xl"
+                              >
+                                Próxima
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {updateMonthActivity.isError && (
+                        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                          Erro ao salvar atividades do mês.
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={handleCancelEditMonthActivity}
+                          disabled={updateMonthActivity.isPending}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleSaveMonthActivityEdit}
+                          disabled={isEditMonthActivitySaveDisabled}
+                        >
+                          {updateMonthActivity.isPending ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+          </div>
+        </div>
+      )}
+
       {isEventModalOpen && (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 px-4 py-10 backdrop-blur-sm"
@@ -1577,12 +2538,10 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                             "rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase",
                             eventDetails.data.lesson.lesson_type === "live"
                               ? "bg-blue-100 text-blue-800"
-                              : "bg-emerald-100 text-emerald-800"
+                              : "bg-emerald-100 text-emerald-800",
                           )}
                         >
-                          {eventDetails.data.lesson.lesson_type === "live"
-                            ? "Ao vivo"
-                            : "Gravada"}
+                          {eventDetails.data.lesson.lesson_type === "live" ? "Ao vivo" : "Gravada"}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1597,7 +2556,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                           <p className="text-sm text-muted-foreground">
                             {new Date(eventDetails.data.scheduled_datetime).toLocaleString(
                               "pt-BR",
-                              { dateStyle: "medium", timeStyle: "short" }
+                              { dateStyle: "medium", timeStyle: "short" },
                             )}
                           </p>
                         )}
@@ -1738,7 +2697,9 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                         </Button>
                       )}
                       {eventLessonContentFile && (
-                        <p className="text-xs text-muted-foreground">{eventLessonContentFile.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {eventLessonContentFile.name}
+                        </p>
                       )}
                       <input
                         ref={lessonContentInputRef}
@@ -1853,7 +2814,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                       "flex h-12 items-center justify-center rounded-2xl border text-sm font-semibold transition-colors",
                       isSelected
                         ? "border-primary/30 bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:bg-accent/60"
+                        : "border-border bg-background text-muted-foreground hover:bg-accent/60",
                     )}
                     aria-pressed={isSelected}
                     title={day.label}
@@ -2005,15 +2966,10 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="space-y-2">
-              <h2
-                id="delete-subscription-title"
-                className="text-xl font-semibold text-foreground"
-              >
+              <h2 id="delete-subscription-title" className="text-xl font-semibold text-foreground">
                 Tem certeza que deseja apagar esta matricula?
               </h2>
-              <p className="text-sm text-muted-foreground">
-                Essa ação não poderá ser desfeita.
-              </p>
+              <p className="text-sm text-muted-foreground">Essa ação não poderá ser desfeita.</p>
             </div>
 
             {deleteSubscription.isError && (

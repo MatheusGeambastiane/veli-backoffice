@@ -4,16 +4,19 @@ import { classesApi } from "@/features/classes/api/classesApi";
 
 export const classesKeys = {
   all: ["classes"] as const,
-  list: (params: { search?: string; is_active?: string; page_size?: number }) => [
-    ...classesKeys.all,
-    "list",
-    params,
-  ] as const,
+  list: (params: { search?: string; is_active?: string; page_size?: number }) =>
+    [...classesKeys.all, "list", params] as const,
   details: (id: string) => [...classesKeys.all, "details", id] as const,
   coursesSimple: () => [...classesKeys.all, "courses-simple"] as const,
   teacherProfilesSimple: () => [...classesKeys.all, "teacher-profiles-simple"] as const,
   scheduleByClass: (id: string) => [...classesKeys.all, "schedule-by-class", id] as const,
+  hasSchedule: (id: string) => [...classesKeys.all, "has-schedule", id] as const,
   lessonDoubtsByClass: (id: string) => [...classesKeys.all, "lesson-doubts-by-class", id] as const,
+  monthActivitiesByClass: (id: string) =>
+    [...classesKeys.all, "month-activities-by-class", id] as const,
+  monthActivityDetails: (id: string) => [...classesKeys.all, "month-activity-details", id] as const,
+  dailyActivities: (params: { search?: string; page?: number }) =>
+    [...classesKeys.all, "daily-activities", params] as const,
   eventDetails: (id: string) => [...classesKeys.all, "event-details", id] as const,
 };
 
@@ -88,27 +91,26 @@ export function useTeacherProfilesSimpleOnDemand(enabled: boolean) {
   });
 }
 
-export function useScheduleByClass(id: string) {
+export function useScheduleByClass(id: string, enabled = true) {
   const { status } = useSession();
 
   return useQuery({
     queryKey: classesKeys.scheduleByClass(id),
     queryFn: () => classesApi.scheduleByClass(id),
-    enabled: status === "authenticated" && Boolean(id),
+    enabled: status === "authenticated" && Boolean(id) && enabled,
+  });
+}
+
+export function useHasSchedule(id: string) {
+  return useMutation({
+    mutationFn: () => classesApi.hasSchedule(id),
   });
 }
 
 export function useGenerateSchedule() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (payload: Parameters<typeof classesApi.generateSchedule>[0]) =>
       classesApi.generateSchedule(payload),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: classesKeys.scheduleByClass(String(variables.student_class)),
-      });
-    },
   });
 }
 
@@ -141,13 +143,13 @@ export function useUpdateEvent(classId: string, eventId: string) {
   });
 }
 
-export function useLessonDoubtsByClass(id: string) {
+export function useLessonDoubtsByClass(id: string, enabled = true) {
   const { status } = useSession();
 
   return useQuery({
     queryKey: classesKeys.lessonDoubtsByClass(id),
     queryFn: () => classesApi.lessonDoubtsByClass(id),
-    enabled: status === "authenticated" && Boolean(id),
+    enabled: status === "authenticated" && Boolean(id) && enabled,
   });
 }
 
@@ -165,13 +167,78 @@ export function useCreateDoubtAnswer(classId: string) {
   });
 }
 
-export function useClassSubscriptions(params: { classId: string; search?: string }) {
+export function useMonthActivitiesByClass(id: string, enabled = true) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: classesKeys.monthActivitiesByClass(id),
+    queryFn: () => classesApi.monthActivitiesByClass(id),
+    enabled: status === "authenticated" && Boolean(id) && enabled,
+  });
+}
+
+export function useMonthActivityDetails(id: string) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: classesKeys.monthActivityDetails(id),
+    queryFn: () => classesApi.monthActivityDetails(id),
+    enabled: status === "authenticated" && Boolean(id),
+  });
+}
+
+export function useDailyActivities(params: { search?: string; page?: number }, enabled = true) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: classesKeys.dailyActivities(params),
+    queryFn: () => classesApi.dailyActivities(params),
+    enabled: status === "authenticated" && enabled,
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useCreateMonthActivity(classId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof classesApi.createMonthActivity>[0]) =>
+      classesApi.createMonthActivity(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: classesKeys.monthActivitiesByClass(classId),
+      });
+    },
+  });
+}
+
+export function useUpdateMonthActivity(classId: string, monthActivityId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof classesApi.updateMonthActivity>[1]) =>
+      classesApi.updateMonthActivity(monthActivityId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: classesKeys.monthActivitiesByClass(classId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: classesKeys.monthActivityDetails(monthActivityId),
+      });
+    },
+  });
+}
+
+export function useClassSubscriptions(
+  params: { classId: string; search?: string },
+  enabled = true,
+) {
   const { status } = useSession();
 
   return useQuery({
     queryKey: [...classesKeys.details(params.classId), "subscriptions", params.search],
     queryFn: () => classesApi.subscriptionsByClass(params.classId, { search: params.search }),
-    enabled: status === "authenticated" && Boolean(params.classId),
+    enabled: status === "authenticated" && Boolean(params.classId) && enabled,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -200,8 +267,10 @@ export function useUpdateSubscriptionStatus(classId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { id: number; status: "inscrito" | "estudando" | "finalizado" | "desistente" }) =>
-      classesApi.updateSubscriptionStatus(payload.id, { status: payload.status }),
+    mutationFn: (payload: {
+      id: number;
+      status: "inscrito" | "estudando" | "finalizado" | "desistente";
+    }) => classesApi.updateSubscriptionStatus(payload.id, { status: payload.status }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [...classesKeys.details(classId), "subscriptions"],

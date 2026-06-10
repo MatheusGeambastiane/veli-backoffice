@@ -9,11 +9,7 @@ import {
   useOfferCoursesSimple,
   useOfferStudentClassesSimple,
 } from "@/features/offers/queries/offersQueries";
-import type {
-  BillingOptionCode,
-  BillingOptionPayload,
-  PaymentMode,
-} from "@/features/offers/types/offer";
+import type { BillingOptionPayload, PaymentMode } from "@/features/offers/types/offer";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { cn } from "@/shared/lib/utils";
@@ -62,7 +58,7 @@ const BILLING_OPTION_META = {
     icon: CreditCard,
   },
 } satisfies Record<
-  BillingOptionCode,
+  CreateBillingOptionCode,
   {
     label: string;
     subtitle: string;
@@ -73,6 +69,12 @@ const BILLING_OPTION_META = {
     icon: typeof QrCode;
   }
 >;
+
+type CreateBillingOptionCode =
+  | "UPFRONT_PIX"
+  | "UPFRONT_CREDIT_CARD"
+  | "MONTHLY_PIX"
+  | "MONTHLY_CREDIT_CARD";
 
 type OfferFormState = {
   name: string;
@@ -134,13 +136,13 @@ function normalizeIntegerInput(value: string) {
 }
 
 function getCompatibleBillingOptionCodes(paymentModes: PaymentMode[]) {
-  return (Object.keys(BILLING_OPTION_META) as BillingOptionCode[]).filter((code) =>
+  return (Object.keys(BILLING_OPTION_META) as CreateBillingOptionCode[]).filter((code) =>
     paymentModes.includes(BILLING_OPTION_META[code].mode)
   );
 }
 
 function buildBillingOptionPayload(params: {
-  code: BillingOptionCode;
+  code: CreateBillingOptionCode;
   price: string;
   installments: number[];
 }) {
@@ -166,7 +168,7 @@ export function CreateOfferPage() {
   const [formState, setFormState] = useState<OfferFormState>(DEFAULT_FORM);
   const [errors, setErrors] = useState<OfferFormErrors>({});
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-  const [billingCode, setBillingCode] = useState<BillingOptionCode | "">("");
+  const [billingCode, setBillingCode] = useState<CreateBillingOptionCode | "">("");
   const [billingPrice, setBillingPrice] = useState("");
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
 
@@ -201,7 +203,7 @@ export function CreateOfferPage() {
         ...current,
         paymentModes: nextPaymentModes,
         billingOptions: current.billingOptions.filter((option) =>
-          nextCompatibleCodes.includes(option.code)
+          nextCompatibleCodes.includes(option.code as CreateBillingOptionCode)
         ),
       };
     });
@@ -647,7 +649,7 @@ export function CreateOfferPage() {
                 {formState.billingOptions.length > 0 && (
                   <div className="mt-4 grid gap-3">
                     {formState.billingOptions.map((option) => {
-                      const meta = BILLING_OPTION_META[option.code];
+                      const meta = BILLING_OPTION_META[option.code as CreateBillingOptionCode];
                       const Icon = meta.icon;
                       return (
                         <article

@@ -119,18 +119,21 @@ export type SimpleOfferClass = {
   name: string;
 };
 
+export type SimpleOfferCampaign = {
+  id: number;
+  name: string;
+};
+
 export type PaymentMode = "one_time" | "monthly";
 
-export type BillingOptionCode =
-  | "UPFRONT_PIX"
-  | "UPFRONT_CREDIT_CARD"
-  | "MONTHLY_PIX"
-  | "MONTHLY_CREDIT_CARD";
+export type BillingOptionCode = string;
+
+export type BillingCycle = "none" | "monthly" | "quarterly" | "semi_annual" | "annual";
 
 export type BillingOptionPayload = {
   code: BillingOptionCode;
   type: "one_time" | "recurring";
-  cycle: "none" | "monthly";
+  cycle: BillingCycle;
   billing_method: "pix" | "credit_card";
   price: string;
   allowed_installments: number[];
@@ -148,5 +151,18 @@ export type CreateOfferPayload = {
   payment_mode: PaymentMode[];
   allow_cash_discount: boolean;
   plan_type: "one_time" | "monthly";
+  billing_options: BillingOptionPayload[];
+};
+
+export type UpdateOfferPayload = {
+  name: string;
+  student_classes: number[];
+  price: string;
+  payment_mode: PaymentMode[];
+  plan_type: "one_time" | "monthly";
+  allow_cash_discount: boolean;
+  cash_discount_type: "fixed" | "percent" | null;
+  cash_discount_value: string | null;
+  campaign: number;
   billing_options: BillingOptionPayload[];
 };
