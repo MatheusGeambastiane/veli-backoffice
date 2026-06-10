@@ -1,6 +1,7 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type {
   ClassSubscription,
+  ClassSubscriptionDetails,
   CreateSubscriptionPayload,
   CreateMonthActivityPayload,
   CreateStudentClassPayload,
@@ -113,6 +114,9 @@ export const classesApi = {
       ? `/dashboard/subscriptions/by_class/${id}/?${query}`
       : `/dashboard/subscriptions/by_class/${id}/`;
     return httpClient.get<ClassSubscription[]>(path);
+  },
+  subscriptionDetails: (id: string) => {
+    return httpClient.get<ClassSubscriptionDetails>(`/dashboard/subscriptions/${id}/`);
   },
   searchStudentProfiles: (search: string) => {
     const searchParams = new URLSearchParams();

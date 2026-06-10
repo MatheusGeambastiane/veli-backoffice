@@ -20,6 +20,7 @@ import {
   ScrollText,
   Users,
   User,
+  X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/shared/components/ui/button";
@@ -43,13 +44,14 @@ import {
   useMonthActivityDetails,
   useSearchStudentProfiles,
   useScheduleByClass,
+  useSubscriptionDetails,
   useTeacherProfilesSimple,
   useUpdateClassDetails,
   useUpdateEvent,
   useUpdateMonthActivity,
   useUpdateSubscriptionStatus,
 } from "@/features/classes/queries/classesQueries";
-import type { MonthActivityListItem } from "@/features/classes/types/class";
+import type { MonthActivityListItem, UserAddress } from "@/features/classes/types/class";
 
 type ClassDetailsPageProps = {
   classId: string;
@@ -100,6 +102,15 @@ const MONTHS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const SUBSCRIPTION_DETAILS_TABS = [
+  { id: "dados-pessoais", label: "Dados pessoais" },
+  { id: "contato", label: "Contato" },
+  { id: "acompanhamento", label: "Acompanhamento" },
+  { id: "faturamento", label: "Faturamento" },
+] as const;
+
+type SubscriptionDetailsTabId = (typeof SUBSCRIPTION_DETAILS_TABS)[number]["id"];
+
 export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const { data, isLoading, isError } = useClassDetails(classId);
   const { status } = useSession();
@@ -111,6 +122,10 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const [studentLookup, setStudentLookup] = useState("");
   const [openStatusId, setOpenStatusId] = useState<number | null>(null);
   const [openOptionsId, setOpenOptionsId] = useState<number | null>(null);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<number | null>(null);
+  const [isSubscriptionDetailsOpen, setIsSubscriptionDetailsOpen] = useState(false);
+  const [subscriptionDetailsTab, setSubscriptionDetailsTab] =
+    useState<SubscriptionDetailsTabId>("dados-pessoais");
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
@@ -186,6 +201,9 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const createSubscription = useCreateClassSubscription(classId);
   const updateSubscriptionStatus = useUpdateSubscriptionStatus(classId);
   const deleteSubscription = useDeleteSubscription(classId);
+  const subscriptionDetails = useSubscriptionDetails(
+    selectedSubscriptionId ? String(selectedSubscriptionId) : "",
+  );
   const coursesSimple = useCoursesSimple();
   const teacherProfilesSimple = useTeacherProfilesSimple();
   const updateClassDetails = useUpdateClassDetails(classId);
@@ -239,6 +257,44 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   function formatTime(value?: string | null) {
     if (!value) return "Nao informado";
     return value.length >= 5 ? value.slice(0, 5) : value;
+  }
+
+  function formatNullable(value?: string | number | boolean | null) {
+    if (value === null || value === undefined || value === "") return "Nao informado";
+    if (typeof value === "boolean") return value ? "Sim" : "Nao";
+    return String(value);
+  }
+
+  function formatDateTime(value?: string | null) {
+    if (!value) return "Nao informado";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString("pt-BR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function formatCurrency(value?: number | null) {
+    if (value === null || value === undefined) return "Nao informado";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  }
+
+  function formatLanguages(languages?: { name: string }[] | null) {
+    if (!languages?.length) return "Nao informado";
+    return languages.map((language) => language.name).join(", ");
+  }
+
+  function formatAddress(address?: UserAddress | null) {
+    if (!address) return "Nao informado";
+    const streetLine = [address.street, address.address_number].filter(Boolean).join(", ");
+    const cityLine = [address.neighborhood, address.city, address.state]
+      .filter(Boolean)
+      .join(" - ");
+    return [streetLine, cityLine, address.country, address.zip_code].filter(Boolean).join(" • ");
   }
 
   function formatNextClass(value: unknown) {
@@ -341,6 +397,20 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     setIsCreateOpen(false);
     setStudentLookup("");
     searchStudents.reset();
+  }
+
+  function handleOpenSubscriptionDetails(id: number) {
+    setSelectedSubscriptionId(id);
+    setIsSubscriptionDetailsOpen(true);
+    setSubscriptionDetailsTab("dados-pessoais");
+    setOpenStatusId(null);
+    setOpenOptionsId(null);
+  }
+
+  function handleCloseSubscriptionDetails() {
+    setIsSubscriptionDetailsOpen(false);
+    setSelectedSubscriptionId(null);
+    setSubscriptionDetailsTab("dados-pessoais");
   }
 
   function handleSearchStudents() {
@@ -1309,7 +1379,11 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                                 key={subscription.id}
                                 className="grid gap-3 rounded-2xl border border-border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_160px_80px] sm:items-center"
                               >
-                                <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSubscriptionDetails(subscription.id)}
+                                  className="flex min-w-0 items-center gap-3 rounded-2xl text-left transition-colors hover:bg-accent/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
                                   <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-muted">
                                     {subscription.student.profile_pic ? (
                                       <img
@@ -1324,7 +1398,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                                   <p className="text-sm font-semibold text-foreground">
                                     {subscription.student.full_name}
                                   </p>
-                                </div>
+                                </button>
                                 <div className="relative" data-subscription-menu>
                                   <button
                                     type="button"
@@ -2839,6 +2913,398 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         </div>
       )}
 
+      {isSubscriptionDetailsOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 px-4 py-10 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="subscription-details-title"
+          onClick={handleCloseSubscriptionDetails}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-5xl space-y-5 overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Detalhes da matrícula</p>
+                <h2
+                  id="subscription-details-title"
+                  className="text-xl font-semibold text-foreground"
+                >
+                  {subscriptionDetails.data?.student.full_name ?? "Matrícula"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseSubscriptionDetails}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                aria-label="Fechar modal"
+              >
+                X
+              </button>
+            </div>
+
+            {subscriptionDetails.isLoading && (
+              <div className="space-y-3">
+                <div className="h-24 animate-pulse rounded-2xl bg-muted" />
+                <div className="h-64 animate-pulse rounded-2xl bg-muted" />
+              </div>
+            )}
+
+            {subscriptionDetails.isError && (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                Erro ao carregar detalhes da matrícula.
+              </div>
+            )}
+
+            {!subscriptionDetails.isLoading &&
+              !subscriptionDetails.isError &&
+              subscriptionDetails.data && (
+                <>
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-border bg-muted">
+                          {subscriptionDetails.data.user.profile_pic ? (
+                            <img
+                              src={subscriptionDetails.data.user.profile_pic}
+                              alt={subscriptionDetails.data.student.full_name}
+                              className="h-16 w-16 rounded-full object-cover"
+                            />
+                          ) : (
+                            <User className="h-7 w-7 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-foreground">
+                            {subscriptionDetails.data.student.full_name}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>{formatNullable(subscriptionDetails.data.student.phone)}</span>
+                            <span>•</span>
+                            <span>{formatNullable(subscriptionDetails.data.student.email)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          "w-fit rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                          statusClassMap[subscriptionDetails.data.status],
+                        )}
+                      >
+                        {statusLabelMap[subscriptionDetails.data.status]}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 rounded-2xl border border-border bg-background p-2 sm:grid-cols-4">
+                    {SUBSCRIPTION_DETAILS_TABS.map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setSubscriptionDetailsTab(tab.id)}
+                        className={cn(
+                          "rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                          subscriptionDetailsTab === tab.id
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                        )}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {subscriptionDetailsTab === "dados-pessoais" && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <InfoBlock label="Nome" value={subscriptionDetails.data.user.first_name} />
+                      <InfoBlock
+                        label="Sobrenome"
+                        value={subscriptionDetails.data.user.last_name}
+                      />
+                      <InfoBlock label="CPF" value={subscriptionDetails.data.user.cpf} />
+                      <InfoBlock label="Gênero" value={subscriptionDetails.data.user.gender} />
+                      <InfoBlock
+                        label="Nascimento"
+                        value={subscriptionDetails.data.user.date_of_birth}
+                      />
+                      <InfoBlock
+                        label="Idiomas do usuário"
+                        value={formatLanguages(subscriptionDetails.data.user.languages)}
+                      />
+                      <InfoBlock
+                        label="Idiomas do perfil"
+                        value={formatLanguages(
+                          subscriptionDetails.data.user.student_profile?.languages,
+                        )}
+                      />
+                      <InfoBlock
+                        label="Bio"
+                        value={subscriptionDetails.data.user.student_profile?.bio}
+                      />
+                    </div>
+                  )}
+
+                  {subscriptionDetailsTab === "contato" && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <InfoBlock label="Telefone" value={subscriptionDetails.data.user.phone} />
+                      <InfoBlock label="Email" value={subscriptionDetails.data.user.email} />
+                      <div className="rounded-2xl border border-border bg-background px-4 py-3 sm:col-span-2">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Endereço
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                          {formatAddress(subscriptionDetails.data.user.address)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {subscriptionDetailsTab === "acompanhamento" && (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <InfoBlock
+                          label="Total de aulas"
+                          value={subscriptionDetails.data.events.total_events}
+                        />
+                        <InfoBlock
+                          label="Vistas"
+                          value={subscriptionDetails.data.events.watched_events}
+                        />
+                        <InfoBlock
+                          label="Não vistas"
+                          value={subscriptionDetails.data.events.unwatched_events}
+                        />
+                      </div>
+                      {subscriptionDetails.data.events.items.length ? (
+                        <ul className="max-h-[420px] space-y-3 overflow-y-auto">
+                          {subscriptionDetails.data.events.items.map((event) => (
+                            <li
+                              key={event.id}
+                              className="rounded-2xl border border-border bg-background px-4 py-3"
+                            >
+                              <div className="flex items-start gap-3">
+                                <span
+                                  className={cn(
+                                    "mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full border",
+                                    event.watched
+                                      ? "border-emerald-200 bg-emerald-100 text-emerald-800"
+                                      : "border-red-200 bg-red-100 text-red-800",
+                                  )}
+                                >
+                                  {event.watched ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    <X className="h-4 w-4" />
+                                  )}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {event.lesson.name}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {event.module.name} • {formatDateTime(event.scheduled_datetime)}
+                                  </p>
+                                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <span>Visto em: {formatDateTime(event.watched_at)}</span>
+                                    <span>Avaliação: {formatNullable(event.rating)}</span>
+                                  </div>
+                                  {event.comment && (
+                                    <p className="mt-2 text-sm text-foreground">{event.comment}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                          Nenhum evento encontrado para este aluno.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {subscriptionDetailsTab === "faturamento" && (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <InfoBlock label="Oferta" value={subscriptionDetails.data.offer?.name} />
+                        <InfoBlock
+                          label="Preço"
+                          value={formatCurrency(subscriptionDetails.data.offer?.price)}
+                        />
+                        <InfoBlock
+                          label="Tipo de plano"
+                          value={subscriptionDetails.data.offer?.plan_type}
+                        />
+                        <InfoBlock
+                          label="Duração de acesso"
+                          value={
+                            subscriptionDetails.data.offer
+                              ? `${subscriptionDetails.data.offer.access_duration_days} dias`
+                              : null
+                          }
+                        />
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <InfoBlock label="Pedido" value={subscriptionDetails.data.order?.id} />
+                        <InfoBlock label="Status" value={subscriptionDetails.data.order?.status} />
+                        <InfoBlock
+                          label="Modo de pagamento"
+                          value={subscriptionDetails.data.order?.payment_mode}
+                        />
+                        <InfoBlock
+                          label="Tipo de pagamento"
+                          value={subscriptionDetails.data.order?.payment_type}
+                        />
+                        <InfoBlock
+                          label="Dia de cobrança"
+                          value={subscriptionDetails.data.order?.billing_day}
+                        />
+                        <InfoBlock
+                          label="Próxima cobrança"
+                          value={formatDateTime(subscriptionDetails.data.order?.next_billing_at)}
+                        />
+                        <InfoBlock
+                          label="Período atual início"
+                          value={formatDateTime(
+                            subscriptionDetails.data.order?.current_period_start,
+                          )}
+                        />
+                        <InfoBlock
+                          label="Período atual fim"
+                          value={formatDateTime(subscriptionDetails.data.order?.current_period_end)}
+                        />
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Contrato
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-foreground">
+                              {formatNullable(subscriptionDetails.data.contract?.status)}
+                            </p>
+                          </div>
+                          {subscriptionDetails.data.contract?.contract_file_url && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                window.open(
+                                  subscriptionDetails.data?.contract?.contract_file_url ?? "",
+                                  "_blank",
+                                )
+                              }
+                            >
+                              <FileText className="h-4 w-4" />
+                              Ver contrato
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-sm font-semibold text-foreground">Pagamentos</p>
+                        {subscriptionDetails.data.payments.length ? (
+                          <ul className="space-y-3">
+                            {subscriptionDetails.data.payments.map((payment, index) => (
+                              <li
+                                key={payment.id ?? index}
+                                className="rounded-2xl border border-border bg-background px-4 py-3"
+                              >
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                  <InfoBlock label="Status" value={payment.status} />
+                                  <InfoBlock
+                                    label="Valor"
+                                    value={formatCurrency(payment.amount_gross ?? payment.amount)}
+                                  />
+                                  <InfoBlock
+                                    label="Vencimento"
+                                    value={formatDateTime(payment.due_date)}
+                                  />
+                                  <InfoBlock
+                                    label="Pago em"
+                                    value={formatDateTime(payment.paid_at)}
+                                  />
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                            Nenhum pagamento listado.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-sm font-semibold text-foreground">Cobranças</p>
+                        {subscriptionDetails.data.billing?.charges.length ? (
+                          <ul className="space-y-3">
+                            {subscriptionDetails.data.billing.charges.map((charge) => (
+                              <li
+                                key={charge.id}
+                                className="rounded-2xl border border-border bg-background px-4 py-3"
+                              >
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                  <InfoBlock label="Status" value={charge.status} />
+                                  <InfoBlock label="Origem" value={charge.origin} />
+                                  <InfoBlock label="Método" value={charge.billing_method} />
+                                  <InfoBlock
+                                    label="Valor bruto"
+                                    value={formatCurrency(charge.amount_gross)}
+                                  />
+                                  <InfoBlock
+                                    label="Valor líquido"
+                                    value={formatCurrency(charge.amount_net)}
+                                  />
+                                  <InfoBlock
+                                    label="Taxa"
+                                    value={formatCurrency(charge.fee_amount)}
+                                  />
+                                  <InfoBlock
+                                    label="Vencimento"
+                                    value={formatDateTime(charge.due_date)}
+                                  />
+                                  <InfoBlock
+                                    label="Pago em"
+                                    value={formatDateTime(charge.paid_at)}
+                                  />
+                                </div>
+                                {charge.receipt_url && (
+                                  <div className="mt-3">
+                                    <a
+                                      href={charge.receipt_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                                    >
+                                      Ver recibo
+                                    </a>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                            Nenhuma cobrança encontrada.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+          </div>
+        </div>
+      )}
+
       {isCreateOpen && (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 px-4 py-10 backdrop-blur-sm"
@@ -3004,5 +3470,23 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         </div>
       )}
     </section>
+  );
+}
+
+function InfoBlock({ label, value }: { label: string; value?: string | number | boolean | null }) {
+  const displayValue =
+    value === null || value === undefined || value === ""
+      ? "Nao informado"
+      : typeof value === "boolean"
+        ? value
+          ? "Sim"
+          : "Nao"
+        : String(value);
+
+  return (
+    <div className="rounded-2xl border border-border bg-background px-4 py-3">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-foreground">{displayValue}</p>
+    </div>
   );
 }

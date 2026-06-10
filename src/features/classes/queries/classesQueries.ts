@@ -17,6 +17,7 @@ export const classesKeys = {
   monthActivityDetails: (id: string) => [...classesKeys.all, "month-activity-details", id] as const,
   dailyActivities: (params: { search?: string; page?: number }) =>
     [...classesKeys.all, "daily-activities", params] as const,
+  subscriptionDetails: (id: string) => [...classesKeys.all, "subscription-details", id] as const,
   eventDetails: (id: string) => [...classesKeys.all, "event-details", id] as const,
 };
 
@@ -240,6 +241,16 @@ export function useClassSubscriptions(
     queryFn: () => classesApi.subscriptionsByClass(params.classId, { search: params.search }),
     enabled: status === "authenticated" && Boolean(params.classId) && enabled,
     placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useSubscriptionDetails(id: string) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: classesKeys.subscriptionDetails(id),
+    queryFn: () => classesApi.subscriptionDetails(id),
+    enabled: status === "authenticated" && Boolean(id),
   });
 }
 
