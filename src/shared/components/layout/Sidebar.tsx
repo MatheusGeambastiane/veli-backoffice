@@ -15,6 +15,7 @@ import {
   Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
+  ShoppingCart,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
 const financialItems: NavItem[] = [
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/offers", label: "Ofertas", icon: Layers3 },
+  { href: "/orders", label: "Pedidos", icon: ShoppingCart },
 ];
 const mobileNavItems = [...navItems, ...financialItems];
 

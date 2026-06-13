@@ -10,7 +10,8 @@ export const offersKeys = {
   detail: (id: string) => [...offersKeys.details(), id] as const,
   coursesSimple: () => [...offersKeys.all, "courses-simple"] as const,
   campaignsSimple: () => [...offersKeys.all, "campaigns-simple"] as const,
-  studentClassesSimple: () => [...offersKeys.all, "student-classes-simple"] as const,
+  studentClassesSimple: (params?: { course?: number }) =>
+    [...offersKeys.all, "student-classes-simple", params] as const,
 };
 
 export function useOffersList(params: OfferListParams) {
@@ -56,12 +57,12 @@ export function useOfferCampaignsSimple() {
   });
 }
 
-export function useOfferStudentClassesSimple() {
+export function useOfferStudentClassesSimple(params?: { course?: number }) {
   const { status } = useSession();
 
   return useQuery({
-    queryKey: offersKeys.studentClassesSimple(),
-    queryFn: offersApi.studentClassesSimple,
+    queryKey: offersKeys.studentClassesSimple(params),
+    queryFn: () => offersApi.studentClassesSimple(params),
     enabled: status === "authenticated",
     placeholderData: (previousData) => previousData,
   });

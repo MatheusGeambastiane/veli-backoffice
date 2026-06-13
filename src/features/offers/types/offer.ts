@@ -117,6 +117,7 @@ export type SimpleOfferCourse = {
 export type SimpleOfferClass = {
   id: number;
   name: string;
+  is_generic: boolean;
 };
 
 export type SimpleOfferCampaign = {
@@ -125,6 +126,8 @@ export type SimpleOfferCampaign = {
 };
 
 export type PaymentMode = "one_time" | "monthly";
+
+export type OfferPlanType = "monthly" | "quarterly" | "semi_annual" | "annual";
 
 export type BillingOptionCode = string;
 
@@ -150,7 +153,7 @@ export type CreateOfferPayload = {
   is_active: boolean;
   payment_mode: PaymentMode[];
   allow_cash_discount: boolean;
-  plan_type: "one_time" | "monthly";
+  plan_type: OfferPlanType | null;
   billing_options: BillingOptionPayload[];
 };
 

@@ -136,6 +136,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [isDaysModalOpen, setIsDaysModalOpen] = useState(false);
   const [classroomLink, setClassroomLink] = useState("");
+  const [isGeneric, setIsGeneric] = useState(false);
   const [selectedScheduleEventId, setSelectedScheduleEventId] = useState<number | null>(null);
   const [openScheduleEventId, setOpenScheduleEventId] = useState<number | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -371,6 +372,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     setClassTime(data.time ? data.time.slice(0, 5) : "");
     setSelectedDays(normalizeDays(data.days_of_week));
     setClassroomLink(data.classroom_link ?? "");
+    setIsGeneric(data.is_generic);
   }
 
   function formatTimeForApi(value: string) {
@@ -471,6 +473,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         time: formatTimeForApi(classTime),
         days_of_week: selectedDays,
         is_active: data.is_active,
+        is_generic: isGeneric,
         duration: data.duration,
         classroom_link: classroomLink.trim() || null,
       },
@@ -1162,13 +1165,25 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                   </div>
                 </div>
 
-                <span
-                  className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                    data.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {data.is_active ? "Turma ativa" : "Turma inativa"}
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  <span
+                    className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                      data.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {data.is_active ? "Turma ativa" : "Turma inativa"}
+                  </span>
+                  <span
+                    className={cn(
+                      "w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                      data.is_generic
+                        ? "bg-sky-100 text-sky-800"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {data.is_generic ? "Turma genérica" : "Turma regular"}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-6 grid gap-4 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
@@ -1233,6 +1248,37 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                     </button>
                   ) : (
                     <p className="text-sm font-semibold text-foreground">{daysOfWeekLabel}</p>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide">Genérica</p>
+                  {isEditing ? (
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-foreground">
+                        {isGeneric ? "Sim" : "Nao"}
+                      </p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isGeneric}
+                        onClick={() => setIsGeneric((current) => !current)}
+                        className={cn(
+                          "relative inline-flex h-6 w-10 shrink-0 rounded-full border transition-colors",
+                          isGeneric ? "border-primary bg-primary" : "border-border bg-muted"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform",
+                            isGeneric ? "translate-x-4" : "translate-x-0.5"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-semibold text-foreground">
+                      {data.is_generic ? "Sim" : "Nao"}
+                    </p>
                   )}
                 </div>
                 <div className="rounded-2xl border border-border bg-background px-4 py-3 sm:col-span-2 lg:col-span-4">

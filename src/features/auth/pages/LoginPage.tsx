@@ -36,32 +36,6 @@ export function LoginPage() {
             </p>
           </div>
           <LoginForm />
-          <div className="space-y-4 text-center text-xs text-muted-foreground">
-            <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-border" />
-              <span>OU CONTINUE COM</span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 rounded-full border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground"
-                disabled
-              >
-                Google
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 rounded-full border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground"
-                disabled
-              >
-                Apple
-              </button>
-            </div>
-            <p>
-              Nao tem uma conta? <span className="text-primary">Fale com o suporte</span>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

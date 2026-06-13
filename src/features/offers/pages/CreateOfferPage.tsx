@@ -9,7 +9,7 @@ import {
   useOfferCoursesSimple,
   useOfferStudentClassesSimple,
 } from "@/features/offers/queries/offersQueries";
-import type { BillingOptionPayload, PaymentMode } from "@/features/offers/types/offer";
+import type { BillingOptionPayload, OfferPlanType, PaymentMode } from "@/features/offers/types/offer";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { cn } from "@/shared/lib/utils";
@@ -70,6 +70,18 @@ const BILLING_OPTION_META = {
   }
 >;
 
+const PLAN_TYPE_OPTIONS: Array<{
+  value: OfferPlanType;
+  label: string;
+  durationLabel: string;
+  accessDurationDays: string;
+}> = [
+  { value: "monthly", label: "Mensal", durationLabel: "1 mes", accessDurationDays: "30" },
+  { value: "quarterly", label: "Trimestral", durationLabel: "3 meses", accessDurationDays: "90" },
+  { value: "semi_annual", label: "Semestral", durationLabel: "6 meses", accessDurationDays: "180" },
+  { value: "annual", label: "Anual", durationLabel: "12 meses", accessDurationDays: "365" },
+];
+
 type CreateBillingOptionCode =
   | "UPFRONT_PIX"
   | "UPFRONT_CREDIT_CARD"
@@ -80,6 +92,7 @@ type OfferFormState = {
   name: string;
   price: string;
   accessDurationDays: string;
+  planType: OfferPlanType | "";
   gracePeriodDays: string;
   courseId: number | "";
   studentClassIds: number[];
@@ -92,6 +105,7 @@ type OfferFormErrors = Partial<
     | "name"
     | "price"
     | "accessDurationDays"
+    | "planType"
     | "gracePeriodDays"
     | "courseId"
     | "studentClassIds"
@@ -105,6 +119,7 @@ const DEFAULT_FORM: OfferFormState = {
   name: "",
   price: "",
   accessDurationDays: "",
+  planType: "",
   gracePeriodDays: "",
   courseId: "",
   studentClassIds: [],
@@ -162,6 +177,10 @@ function buildInstallmentRange(limit: number) {
   return Array.from({ length: limit }, (_, index) => index + 1);
 }
 
+function planTypeLabel(value: OfferPlanType | "") {
+  return PLAN_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? "-";
+}
+
 export function CreateOfferPage() {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
@@ -173,7 +192,9 @@ export function CreateOfferPage() {
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
 
   const { data: courses, isLoading: isLoadingCourses } = useOfferCoursesSimple();
-  const { data: studentClasses, isLoading: isLoadingStudentClasses } = useOfferStudentClassesSimple();
+  const { data: studentClasses, isLoading: isLoadingStudentClasses } = useOfferStudentClassesSimple(
+    formState.courseId ? { course: formState.courseId } : undefined
+  );
   const createOffer = useCreateOffer();
 
   const courseOptions = useMemo(() => courses ?? [], [courses]);
@@ -212,7 +233,7 @@ export function CreateOfferPage() {
 
   function openBillingModal() {
     setBillingCode(compatibleCodes[0] ?? "");
-    setBillingPrice("");
+    setBillingPrice(formState.price);
     setSelectedInstallments([]);
     setIsBillingModalOpen(true);
   }
@@ -250,6 +271,10 @@ export function CreateOfferPage() {
       nextErrors.accessDurationDays = "Informe os dias de duracao.";
     }
 
+    if (!formState.planType) {
+      nextErrors.planType = "Selecione o tipo de plano.";
+    }
+
     if (!formState.gracePeriodDays) {
       nextErrors.gracePeriodDays = "Informe o periodo de acesso pos vencimento.";
     }
@@ -278,6 +303,9 @@ export function CreateOfferPage() {
     }
     if (!formState.accessDurationDays || Number(formState.accessDurationDays) <= 0) {
       nextErrors.accessDurationDays = "Informe os dias de duracao.";
+    }
+    if (!formState.planType) {
+      nextErrors.planType = "Selecione o tipo de plano.";
     }
     if (!formState.gracePeriodDays) {
       nextErrors.gracePeriodDays = "Informe o periodo de acesso pos vencimento.";
@@ -356,7 +384,11 @@ export function CreateOfferPage() {
     if (!validateFullForm()) return;
 
     const normalizedPrice = currencyInputToApiValue(formState.price);
-    if (!normalizedPrice || !formState.courseId) return;
+    if (!normalizedPrice || !formState.courseId || !formState.planType) return;
+
+    const hasRecurringBillingOption = formState.billingOptions.some(
+      (option) => option.type === "recurring"
+    );
 
     try {
       await createOffer.mutateAsync({
@@ -369,7 +401,7 @@ export function CreateOfferPage() {
         is_active: true,
         payment_mode: formState.paymentModes,
         allow_cash_discount: false,
-        plan_type: formState.paymentModes.includes("monthly") ? "monthly" : "one_time",
+        plan_type: hasRecurringBillingOption ? formState.planType : null,
         billing_options: formState.billingOptions,
       });
       router.push("/offers");
@@ -483,6 +515,43 @@ export function CreateOfferPage() {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Tipo de plano</label>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {PLAN_TYPE_OPTIONS.map((option) => {
+                    const isSelected = formState.planType === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setFormState((current) => ({
+                            ...current,
+                            planType: option.value,
+                            accessDurationDays: option.accessDurationDays,
+                          }));
+                          setErrors((current) => ({
+                            ...current,
+                            planType: undefined,
+                            accessDurationDays: undefined,
+                          }));
+                        }}
+                        className={cn(
+                          "rounded-[1.4rem] border px-4 py-4 text-left transition-colors",
+                          isSelected
+                            ? "border-primary/30 bg-primary/10"
+                            : "border-border bg-background hover:bg-accent/50"
+                        )}
+                      >
+                        <p className="font-semibold text-foreground">{option.label}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{option.durationLabel}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.planType && <FieldError message={errors.planType} />}
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
@@ -513,8 +582,16 @@ export function CreateOfferPage() {
                     ariaLabel="Selecionar curso"
                     isLoading={isLoadingCourses}
                     onChange={(value) => {
-                      setFormState((current) => ({ ...current, courseId: value }));
-                      setErrors((current) => ({ ...current, courseId: undefined }));
+                      setFormState((current) => ({
+                        ...current,
+                        courseId: value,
+                        studentClassIds: [],
+                      }));
+                      setErrors((current) => ({
+                        ...current,
+                        courseId: undefined,
+                        studentClassIds: undefined,
+                      }));
                     }}
                   />
                   {errors.courseId && <FieldError message={errors.courseId} />}
@@ -526,7 +603,11 @@ export function CreateOfferPage() {
                 <MultiSelectDropdown
                   label={selectedClassLabels}
                   isLoading={isLoadingStudentClasses}
-                  options={studentClassOptions.map((item) => ({ value: item.id, label: item.name }))}
+                  options={studentClassOptions.map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                    isGeneric: item.is_generic,
+                  }))}
                   selectedValues={formState.studentClassIds}
                   onToggle={handleToggleStudentClass}
                   emptyLabel="Nenhuma turma encontrada."
@@ -544,6 +625,7 @@ export function CreateOfferPage() {
             <div className="mt-4 space-y-3">
               <SummaryLine label="Nome" value={formState.name || "-"} />
               <SummaryLine label="Preco base" value={formState.price || "-"} />
+              <SummaryLine label="Tipo de plano" value={planTypeLabel(formState.planType)} />
               <SummaryLine
                 label="Duracao"
                 value={formState.accessDurationDays ? `${formState.accessDurationDays} dias` : "-"}
@@ -618,9 +700,6 @@ export function CreateOfferPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Opcoes de pagamento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Cada card vira um objeto dentro de <code>billing_options</code>.
-                    </p>
                   </div>
                   <Button
                     type="button"
@@ -721,10 +800,7 @@ export function CreateOfferPage() {
                 label="Payment mode"
                 value={formState.paymentModes.length ? formState.paymentModes.join(", ") : "-"}
               />
-              <SummaryLine
-                label="Plan type"
-                value={formState.paymentModes.includes("monthly") ? "monthly" : "one_time"}
-              />
+              <SummaryLine label="Plan type" value={formState.planType || "-"} />
               <SummaryLine
                 label="Billing options"
                 value={String(formState.billingOptions.length)}
@@ -1044,7 +1120,7 @@ function MultiSelectDropdown({
   ariaLabel,
 }: {
   label: string;
-  options: { value: number; label: string }[];
+  options: { value: number; label: string; isGeneric?: boolean }[];
   selectedValues: number[];
   onToggle: (value: number) => void;
   isLoading?: boolean;
@@ -1106,6 +1182,11 @@ function MultiSelectDropdown({
                     onChange={() => onToggle(option.value)}
                   />
                   <span className="flex-1 truncate">{option.label}</span>
+                  {option.isGeneric && (
+                    <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                      Genérica
+                    </span>
+                  )}
                 </label>
               ))}
             </div>

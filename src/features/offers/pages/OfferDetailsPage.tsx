@@ -592,16 +592,23 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
                         {studentClass.teacher_full_name ?? "Professor nao informado"}
                       </p>
                     </div>
-                    <span
-                      className={cn(
-                        "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
-                        studentClass.is_active
-                          ? "bg-emerald-500/10 text-emerald-700"
-                          : "bg-muted text-muted-foreground"
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                      <span
+                        className={cn(
+                          "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                          studentClass.is_active
+                            ? "bg-emerald-500/10 text-emerald-700"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {statusLabel(studentClass.is_active)}
+                      </span>
+                      {studentClass.is_generic && (
+                        <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-800">
+                          Genérica
+                        </span>
                       )}
-                    >
-                      {statusLabel(studentClass.is_active)}
-                    </span>
+                    </div>
                   </div>
                   <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                     <span>{studentClass.start_date} ate {studentClass.finish_date}</span>
@@ -640,7 +647,7 @@ function OfferEditView({
   setErrors: Dispatch<SetStateAction<OfferEditErrors>>;
   campaigns: { id: number; name: string }[];
   isLoadingCampaigns: boolean;
-  studentClasses: { id: number; name: string }[];
+  studentClasses: { id: number; name: string; is_generic?: boolean }[];
   isLoadingStudentClasses: boolean;
   isSaving: boolean;
   hasSaveError: boolean;
@@ -820,6 +827,7 @@ function OfferEditView({
                 options={studentClasses.map((studentClass) => ({
                   value: studentClass.id,
                   label: studentClass.name,
+                  isGeneric: studentClass.is_generic,
                 }))}
                 selectedValues={formState.studentClassIds}
                 onToggle={(id) => {
@@ -1287,7 +1295,7 @@ function MultiSelectDropdown({
   ariaLabel,
 }: {
   label: string;
-  options: { value: number; label: string }[];
+  options: { value: number; label: string; isGeneric?: boolean }[];
   selectedValues: number[];
   onToggle: (value: number) => void;
   isLoading?: boolean;
@@ -1349,6 +1357,11 @@ function MultiSelectDropdown({
                     onChange={() => onToggle(option.value)}
                   />
                   <span className="flex-1 truncate">{option.label}</span>
+                  {option.isGeneric && (
+                    <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                      Genérica
+                    </span>
+                  )}
                   {selectedValues.includes(option.value) && (
                     <Check className="h-4 w-4 text-primary" />
                   )}

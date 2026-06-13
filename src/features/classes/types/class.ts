@@ -15,6 +15,7 @@ export type StudentClass = {
   duration: number;
   classroom_link: string;
   is_active: boolean;
+  is_generic: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -55,6 +56,7 @@ export type CreateStudentClassPayload = {
   time: string;
   days_of_week: string[];
   duration: number;
+  is_generic: boolean;
 };
 
 export type SubscriptionStudent = {
@@ -283,6 +285,7 @@ export type UpdateClassPayload = {
   time: string;
   days_of_week: string[];
   is_active: boolean;
+  is_generic: boolean;
   duration: number;
   classroom_link?: string | null;
 };

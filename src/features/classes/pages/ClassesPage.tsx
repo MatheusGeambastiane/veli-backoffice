@@ -50,6 +50,7 @@ export function ClassesPage() {
   const [time, setTime] = useState("");
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [duration, setDuration] = useState("");
+  const [isGeneric, setIsGeneric] = useState(false);
   const deferredSearch = useDeferredValue(search.trim());
   const { status } = useSession();
 
@@ -97,6 +98,7 @@ export function ClassesPage() {
     setTime("");
     setSelectedDays([]);
     setDuration("");
+    setIsGeneric(false);
   }
 
   function handleOpenCreate() {
@@ -128,6 +130,7 @@ export function ClassesPage() {
         time: `${time}:00`,
         days_of_week: selectedDays,
         duration: Number(duration),
+        is_generic: isGeneric,
       });
       handleCloseCreate();
     } catch {
@@ -298,6 +301,16 @@ export function ClassesPage() {
                     >
                       {item.is_active ? "Ativa" : "Inativa"}
                     </span>
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                        item.is_generic
+                          ? "bg-sky-100 text-sky-800"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {item.is_generic ? "Genérica" : "Regular"}
+                    </span>
                   </div>
 
                   <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
@@ -452,6 +465,33 @@ export function ClassesPage() {
                   className="h-11 rounded-2xl"
                 />
               </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-background px-4 py-3 md:col-span-2">
+                <div>
+                  <Label htmlFor="class-is-generic">É uma turma genérica</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Marque quando esta turma deve ser tratada como genérica.
+                  </p>
+                </div>
+                <button
+                  id="class-is-generic"
+                  type="button"
+                  role="switch"
+                  aria-checked={isGeneric}
+                  onClick={() => setIsGeneric((current) => !current)}
+                  className={cn(
+                    "relative inline-flex h-7 w-12 shrink-0 rounded-full border transition-colors",
+                    isGeneric ? "border-primary bg-primary" : "border-border bg-muted"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-1 h-5 w-5 rounded-full bg-background shadow-sm transition-transform",
+                      isGeneric ? "translate-x-6" : "translate-x-1"
+                    )}
+                  />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -514,6 +554,10 @@ export function ClassesPage() {
                   <span className="font-medium text-foreground">
                     {selectedDays.length ? formatWeekdaysPt(selectedDays) : "-"}
                   </span>
+                </p>
+                <p className="md:col-span-2">
+                  Turma genérica:{" "}
+                  <span className="font-medium text-foreground">{isGeneric ? "Sim" : "Nao"}</span>
                 </p>
               </div>
             </div>
