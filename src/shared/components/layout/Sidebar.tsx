@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Poppins } from "next/font/google";
 import {
+  BadgeDollarSign,
   BriefcaseBusiness,
   BookOpen,
   ChevronRight,
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
 ];
 
 const financialItems: NavItem[] = [
+  { href: "/billing", label: "Faturamento", icon: BadgeDollarSign },
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/offers", label: "Ofertas", icon: Layers3 },
   { href: "/orders", label: "Pedidos", icon: ShoppingCart },

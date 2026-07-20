@@ -25,6 +25,8 @@ export type DashboardStudentClass = {
   id: number;
   course_id: number;
   course_name: string;
+  teacher_profile_id?: number;
+  teacher_name?: string;
   start_date: string;
   finish_date: string;
   time: string;

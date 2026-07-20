@@ -118,6 +118,10 @@ function getClassLabel(item: DashboardClass) {
   return `${lessonName} · ${courseName}`;
 }
 
+function getTeacherLabel(item: DashboardClass) {
+  return item.student_class?.teacher_name?.trim() || null;
+}
+
 export function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary();
   const { user } = useSessionUser();
@@ -570,7 +574,12 @@ export function DashboardPage() {
                                         ? "bg-blue-100 text-blue-800"
                                         : "bg-emerald-100 text-emerald-800"
                                     )}
-                                    title={`${formatDateTime(event.scheduled_datetime)} - ${getClassLabel(event)}`}
+                                    title={[
+                                      `${formatDateTime(event.scheduled_datetime)} - ${getClassLabel(event)}`,
+                                      getTeacherLabel(event),
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" - ")}
                                   >
                                     {getClassLabel(event)}
                                   </div>
@@ -611,27 +620,38 @@ export function DashboardPage() {
                           Nenhuma aula programada para este dia.
                         </p>
                       )}
-                      {selectedDayEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className="rounded-xl border border-border/60 bg-card px-3 py-2"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-medium text-foreground">
-                              {getClassLabel(event)}
+                      {selectedDayEvents.map((event) => {
+                        const teacherName = getTeacherLabel(event);
+
+                        return (
+                          <div
+                            key={event.id}
+                            className="rounded-xl border border-border/60 bg-card px-3 py-2"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground">
+                                  {getClassLabel(event)}
+                                </p>
+                                {teacherName ? (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {teacherName}
+                                  </p>
+                                ) : null}
+                              </div>
+                              <span className="whitespace-nowrap text-xs font-semibold text-primary">
+                                {new Date(event.scheduled_datetime).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {lessonTypeLabel[event.lesson.lesson_type]}
                             </p>
-                            <span className="whitespace-nowrap text-xs font-semibold text-primary">
-                              {new Date(event.scheduled_datetime).toLocaleTimeString("pt-BR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
                           </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {lessonTypeLabel[event.lesson.lesson_type]}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
