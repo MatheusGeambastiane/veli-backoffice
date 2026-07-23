@@ -28,15 +28,8 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { MonthlyPlanPaymentsChart } from "@/features/billing/components/MonthlyPlanPaymentsChart";
 import {
   useBillingSummary,
   useBills,
@@ -355,7 +348,8 @@ function EmployeePaymentsPanel({
         <div className="space-y-1">
           <CardTitle className="text-lg">Pagamentos de funcionarios</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {totalCount} pagamento{totalCount === 1 ? "" : "s"} · {formatCurrencyString(totalAmount)}
+            {totalCount} pagamento{totalCount === 1 ? "" : "s"} ·{" "}
+            {formatCurrencyString(totalAmount)}
           </p>
         </div>
         <Button type="button" size="sm" className="rounded-2xl" onClick={onCreate}>
@@ -400,7 +394,8 @@ function EmployeePaymentRow({ item }: { item: EmployeePayment }) {
   const StatusIcon = status.icon;
   const role = getEmployeePaymentRoleMeta(item.role ?? item.employee_detail.role);
   const RoleIcon = role?.icon;
-  const employeeName = `${item.employee_detail.first_name} ${item.employee_detail.last_name}`.trim();
+  const employeeName =
+    `${item.employee_detail.first_name} ${item.employee_detail.last_name}`.trim();
 
   return (
     <li className="py-2">
@@ -416,7 +411,7 @@ function EmployeePaymentRow({ item }: { item: EmployeePayment }) {
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                status.className
+                status.className,
               )}
             >
               <StatusIcon className="h-3.5 w-3.5" />
@@ -426,7 +421,7 @@ function EmployeePaymentRow({ item }: { item: EmployeePayment }) {
               <span
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                  role.className
+                  role.className,
                 )}
               >
                 <RoleIcon className="h-3.5 w-3.5" />
@@ -546,7 +541,7 @@ function BillRow({ item }: { item: Bill }) {
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                status.className
+                status.className,
               )}
             >
               <StatusIcon className="h-3.5 w-3.5" />
@@ -648,10 +643,9 @@ export function BillingDashboardPage() {
   const [billForm, setBillForm] = useState<BillFormState>(DEFAULT_BILL_FORM);
   const [billErrors, setBillErrors] = useState<BillFormErrors>({});
   const [employeePaymentForm, setEmployeePaymentForm] = useState<EmployeePaymentFormState>(
-    DEFAULT_EMPLOYEE_PAYMENT_FORM
+    DEFAULT_EMPLOYEE_PAYMENT_FORM,
   );
-  const [employeePaymentErrors, setEmployeePaymentErrors] =
-    useState<EmployeePaymentFormErrors>({});
+  const [employeePaymentErrors, setEmployeePaymentErrors] = useState<EmployeePaymentFormErrors>({});
   const [appliedParams, setAppliedParams] = useState<BillingSummaryParams>({
     overview: true,
   });
@@ -666,7 +660,7 @@ export function BillingDashboardPage() {
             start_date: appliedParams.start_date,
             end_date: appliedParams.end_date,
           },
-    [appliedParams, currentMonth]
+    [appliedParams, currentMonth],
   );
   const {
     data: employeePaymentsData,
@@ -689,7 +683,7 @@ export function BillingDashboardPage() {
   const cashAmount =
     totals?.caixa ??
     data?.caixa ??
-    ((totals?.total_billed_amount ?? 0) - (totals?.total_expenses_amount ?? 0));
+    (totals?.total_billed_amount ?? 0) - (totals?.total_expenses_amount ?? 0);
 
   const metrics = [
     {
@@ -721,7 +715,7 @@ export function BillingDashboardPage() {
       value: formatCurrency(totals?.total_expenses_amount),
       helperLabel: "Contas e pagamentos",
       helperValue: formatCurrency(
-        (totals?.bills_amount ?? 0) + (totals?.employee_payments_amount ?? 0)
+        (totals?.bills_amount ?? 0) + (totals?.employee_payments_amount ?? 0),
       ),
       icon: Wallet,
       cardClass:
@@ -816,10 +810,7 @@ export function BillingDashboardPage() {
     createBill.reset();
   }
 
-  function updateBillForm<Key extends keyof BillFormState>(
-    key: Key,
-    value: BillFormState[Key]
-  ) {
+  function updateBillForm<Key extends keyof BillFormState>(key: Key, value: BillFormState[Key]) {
     setBillForm((current) => ({ ...current, [key]: value }));
     setBillErrors((current) => ({ ...current, [key]: undefined }));
   }
@@ -833,7 +824,7 @@ export function BillingDashboardPage() {
 
   function updateEmployeePaymentForm<Key extends keyof EmployeePaymentFormState>(
     key: Key,
-    value: EmployeePaymentFormState[Key]
+    value: EmployeePaymentFormState[Key],
   ) {
     setEmployeePaymentForm((current) => ({ ...current, [key]: value }));
     setEmployeePaymentErrors((current) => ({ ...current, [key]: undefined }));
@@ -1014,6 +1005,8 @@ export function BillingDashboardPage() {
         ))}
       </div>
 
+      <MonthlyPlanPaymentsChart month={appliedParams.month ?? currentMonth} />
+
       <Card>
         <CardHeader className="gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -1048,7 +1041,7 @@ export function BillingDashboardPage() {
           totalAmount={
             bills.length > 0
               ? bills.reduce((total, item) => total + Number(item.amount || 0), 0)
-              : totals?.bills_amount ?? 0
+              : (totals?.bills_amount ?? 0)
           }
           isLoading={isBillsLoading}
           isError={isBillsError}
@@ -1105,10 +1098,7 @@ function BillModal({
   errors: BillFormErrors;
   isSubmitting: boolean;
   submitError: string | null;
-  onChange: <Key extends keyof BillFormState>(
-    key: Key,
-    value: BillFormState[Key]
-  ) => void;
+  onChange: <Key extends keyof BillFormState>(key: Key, value: BillFormState[Key]) => void;
   onClose: () => void;
   onSubmit: () => void;
 }) {
@@ -1228,20 +1218,20 @@ function BillModal({
                 "flex h-10 w-full items-center justify-between rounded-md border px-3 text-sm transition-colors",
                 values.is_recurring
                   ? "border-primary bg-primary/10 text-primary"
-                  : "border-input bg-background text-muted-foreground"
+                  : "border-input bg-background text-muted-foreground",
               )}
             >
               <span>{values.is_recurring ? "Recorrente" : "Nao recorrente"}</span>
               <span
                 className={cn(
                   "relative h-5 w-9 rounded-full transition-colors",
-                  values.is_recurring ? "bg-primary" : "bg-muted-foreground/30"
+                  values.is_recurring ? "bg-primary" : "bg-muted-foreground/30",
                 )}
               >
                 <span
                   className={cn(
                     "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
-                    values.is_recurring ? "translate-x-4" : "translate-x-0"
+                    values.is_recurring ? "translate-x-4" : "translate-x-0",
                   )}
                 />
               </span>
@@ -1261,7 +1251,7 @@ function BillModal({
                         "h-10 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         values.recurrence === option.value
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          : "border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                       )}
                     >
                       {option.label}
@@ -1330,7 +1320,7 @@ function BillOptionButton({
         "flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isSelected
           ? "border-primary bg-primary/10 text-primary"
-          : "border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          : "border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
       )}
     >
       <Icon className="h-4 w-4" />
@@ -1358,7 +1348,7 @@ function EmployeePaymentModal({
   submitError: string | null;
   onChange: <Key extends keyof EmployeePaymentFormState>(
     key: Key,
-    value: EmployeePaymentFormState[Key]
+    value: EmployeePaymentFormState[Key],
   ) => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -1431,9 +1421,7 @@ function EmployeePaymentModal({
           <FieldWrapper label="Status" error={errors.status}>
             <select
               value={values.status}
-              onChange={(event) =>
-                onChange("status", event.target.value as EmployeePaymentStatus)
-              }
+              onChange={(event) => onChange("status", event.target.value as EmployeePaymentStatus)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="pending">Pendente</option>
@@ -1459,20 +1447,20 @@ function EmployeePaymentModal({
                 "flex h-10 w-full items-center justify-between rounded-md border px-3 text-sm transition-colors",
                 values.is_recurring
                   ? "border-primary bg-primary/10 text-primary"
-                  : "border-input bg-background text-muted-foreground"
+                  : "border-input bg-background text-muted-foreground",
               )}
             >
               <span>{values.is_recurring ? "Mensal" : "Nao recorrente"}</span>
               <span
                 className={cn(
                   "relative h-5 w-9 rounded-full transition-colors",
-                  values.is_recurring ? "bg-primary" : "bg-muted-foreground/30"
+                  values.is_recurring ? "bg-primary" : "bg-muted-foreground/30",
                 )}
               >
                 <span
                   className={cn(
                     "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
-                    values.is_recurring ? "translate-x-4" : "translate-x-0"
+                    values.is_recurring ? "translate-x-4" : "translate-x-0",
                   )}
                 />
               </span>
@@ -1761,10 +1749,7 @@ function CalendarMonth({
           const isRangeStart = selectedStartKey === dateKey;
           const isRangeEnd = selectedEndKey === dateKey;
           const isInRange =
-            selectedStart &&
-            selectedEnd &&
-            date > selectedStart &&
-            date < selectedEnd;
+            selectedStart && selectedEnd && date > selectedStart && date < selectedEnd;
 
           return (
             <button
@@ -1781,7 +1766,7 @@ function CalendarMonth({
                 ((!isInRange && !isRangeStart && !isRangeEnd) ||
                   (isRangeStart && !selectedEnd) ||
                   (isRangeEnd && !selectedStart)) &&
-                  "rounded-full"
+                  "rounded-full",
               )}
             >
               {date.getDate()}
@@ -1813,7 +1798,9 @@ function BillingMetricCard({
   iconClass: string;
 }) {
   return (
-    <Card className={cn("relative overflow-hidden rounded-[2rem] shadow-sm transition-all", cardClass)}>
+    <Card
+      className={cn("relative overflow-hidden rounded-[2rem] shadow-sm transition-all", cardClass)}
+    >
       <div className={cn("absolute inset-0", gradientClass)} />
       <CardContent className="relative p-5">
         <div className="flex items-start justify-between gap-4">
@@ -1823,7 +1810,12 @@ function BillingMetricCard({
               {value}
             </p>
           </div>
-          <span className={cn("inline-flex h-11 w-11 items-center justify-center rounded-xl", iconClass)}>
+          <span
+            className={cn(
+              "inline-flex h-11 w-11 items-center justify-center rounded-xl",
+              iconClass,
+            )}
+          >
             {icon}
           </span>
         </div>
@@ -1849,7 +1841,7 @@ function OfferBillingChart({
         ...item,
         short_offer_name: normalizeOfferName(item.offer_name),
       })),
-    [items]
+    [items],
   );
 
   if (isLoading) {

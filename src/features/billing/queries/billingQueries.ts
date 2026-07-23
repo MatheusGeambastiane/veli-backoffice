@@ -5,17 +5,21 @@ import type {
   BillingSummaryParams,
   CreateBillPayload,
   CreateEmployeePaymentPayload,
+  MonthlyPlanPaymentsParams,
 } from "@/features/billing/types/billingDashboard";
 
 export const billingKeys = {
   all: ["billing"] as const,
   summary: (params: BillingSummaryParams) => [...billingKeys.all, "summary", params] as const,
+  monthlyPlanPayments: (params: MonthlyPlanPaymentsParams) =>
+    [...billingKeys.all, "monthly-plan-payments", params] as const,
   employeePayments: () => [...billingKeys.all, "employee-payments"] as const,
   employeePaymentsSummary: (params: BillingSummaryParams) =>
     [...billingKeys.employeePayments(), "summary", params] as const,
   bills: (params: BillingSummaryParams) => [...billingKeys.all, "bills", params] as const,
   billDetails: (id: string) => [...billingKeys.all, "bills", "detail", id] as const,
-  employeePaymentDetails: (id: string) => [...billingKeys.employeePayments(), "detail", id] as const,
+  employeePaymentDetails: (id: string) =>
+    [...billingKeys.employeePayments(), "detail", id] as const,
   employeesSimple: () => [...billingKeys.employeePayments(), "employees-simple"] as const,
 };
 
@@ -27,6 +31,17 @@ export function useBillingSummary(params: BillingSummaryParams) {
     queryFn: () => billingApi.summary(params),
     enabled: status === "authenticated",
     placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useMonthlyPlanPayments(params: MonthlyPlanPaymentsParams) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: billingKeys.monthlyPlanPayments(params),
+    queryFn: () => billingApi.monthlyPlanPayments(params),
+    enabled: status === "authenticated" && Boolean(params.month),
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -105,10 +120,12 @@ export function useCreateBill() {
   });
 }
 
-export function useCreateFinanceTransaction(options: {
-  employeePaymentId?: string;
-  billId?: string;
-} = {}) {
+export function useCreateFinanceTransaction(
+  options: {
+    employeePaymentId?: string;
+    billId?: string;
+  } = {},
+) {
   const queryClient = useQueryClient();
 
   return useMutation({

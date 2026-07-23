@@ -10,6 +10,8 @@ import type {
   EmployeePaymentDetails,
   EmployeePaymentsSummary,
   EmployeePaymentSimpleEmployee,
+  MonthlyPlanPayments,
+  MonthlyPlanPaymentsParams,
 } from "@/features/billing/types/billingDashboard";
 
 export const billingApi = {
@@ -33,11 +35,19 @@ export const billingApi = {
     }
 
     const query = searchParams.toString();
-    const path = query
-      ? `/dashboard/billing/summary/?${query}`
-      : "/dashboard/billing/summary/";
+    const path = query ? `/dashboard/billing/summary/?${query}` : "/dashboard/billing/summary/";
 
     return httpClient.get<BillingSummary>(path);
+  },
+  monthlyPlanPayments: ({ month, sync }: MonthlyPlanPaymentsParams) => {
+    const searchParams = new URLSearchParams({
+      month,
+      sync: String(sync),
+    });
+
+    return httpClient.get<MonthlyPlanPayments>(
+      `/dashboard/billing/monthly-plan-payments/?${searchParams.toString()}`,
+    );
   },
   bills: (params: BillingSummaryParams) => {
     const searchParams = new URLSearchParams();
@@ -75,12 +85,11 @@ export const billingApi = {
   },
   employeesSimple: () =>
     httpClient.get<EmployeePaymentSimpleEmployee[]>(
-      "/dashboard/employee-payments/employees/simple/"
+      "/dashboard/employee-payments/employees/simple/",
     ),
   createEmployeePayment: (payload: CreateEmployeePaymentPayload) =>
     httpClient.post<EmployeePayment>("/dashboard/employee-payments/", payload),
-  createBill: (payload: CreateBillPayload) =>
-    httpClient.post("/dashboard/bills/", payload),
+  createBill: (payload: CreateBillPayload) => httpClient.post("/dashboard/bills/", payload),
   billDetails: (id: string) => httpClient.get<BillDetails>(`/dashboard/bills/${id}/`),
   createFinanceTransaction: (payload: FormData) =>
     httpClient.post("/dashboard/finance-transactions/", payload),

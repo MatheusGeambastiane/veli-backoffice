@@ -9,7 +9,7 @@ const AUTH_COOKIE_NAMES = [
   "__Host-next-auth.csrf-token",
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   if (request.nextUrl.pathname === "/login") {

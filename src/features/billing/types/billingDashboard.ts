@@ -53,6 +53,61 @@ export type BillingSummaryParams = {
   end_date?: string;
 };
 
+export type MonthlyPlanPaymentsParams = {
+  month: string;
+  sync: boolean;
+};
+
+export type MonthlyPlanPaymentTotals = {
+  total_count: number;
+  paid_count: number;
+  pending_count: number;
+  overdue_count: number;
+  expected_amount: number;
+  received_amount: number;
+  amount_to_receive: number;
+};
+
+export type MonthlyPlanPaymentEntry = {
+  offer_id: number;
+  offer_name: string;
+  order_id: number;
+  student_id: number;
+  user_id: number;
+  student_name: string;
+  student_email: string;
+  billing_option_id: number;
+  billing_option_code: string;
+  cycle_number: number;
+  cycle_total: number;
+  due_date: string;
+  status: "paid" | "pending" | "overdue" | string;
+  amount_expected: number;
+  amount_received: number;
+  charge_id: number | null;
+  charge_origin: string;
+  paid_at: string | null;
+  is_projected: boolean;
+};
+
+export type MonthlyPlanPaymentPlan = {
+  offer_id: number;
+  offer_name: string;
+  totals: MonthlyPlanPaymentTotals;
+  entries: MonthlyPlanPaymentEntry[];
+};
+
+export type MonthlyPlanPayments = {
+  period: {
+    month: string;
+    start_date: string;
+    end_date: string;
+    asaas_sync: boolean | null;
+  };
+  totals: MonthlyPlanPaymentTotals;
+  plans: MonthlyPlanPaymentPlan[];
+};
+
 export type EmployeePaymentStatus = "pending" | "paid" | "canceled";
 
 export type BillStatus = "pending" | "paid" | "canceled";
