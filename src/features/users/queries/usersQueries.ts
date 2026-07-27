@@ -70,6 +70,12 @@ export function useUpdateDashboardUser(id: string) {
   });
 }
 
+export function useResetDashboardUserPassword(id: string) {
+  return useMutation({
+    mutationFn: () => usersApi.resetDashboardUserPassword(id),
+  });
+}
+
 export function useUpdateMyProfile() {
   const queryClient = useQueryClient();
 

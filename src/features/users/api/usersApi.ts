@@ -1,9 +1,13 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type { User } from "@/features/users/types/user";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
-import type { DashboardUsersParams, DashboardUsersResponse } from "@/features/users/types/dashboardUser";
+import type {
+  DashboardUsersParams,
+  DashboardUsersResponse,
+} from "@/features/users/types/dashboardUser";
 import type {
   DashboardMyProfileUpdatePayload,
+  DashboardResetPasswordResponse,
   DashboardStudentProfileUpdatePayload,
   DashboardTeacherProfileUpdatePayload,
   DashboardUserDetails,
@@ -33,6 +37,8 @@ export const usersApi = {
   getMe: () => httpClient.get<DashboardUserDetails>("/dashboard/users/me/"),
   updateDashboardUser: (id: string, payload: FormData) =>
     httpClient.patch<DashboardUserDetails>(`/dashboard/users/${id}/`, payload),
+  resetDashboardUserPassword: (id: string) =>
+    httpClient.post<DashboardResetPasswordResponse>(`/dashboard/users/${id}/reset-password/`),
   updateMe: (payload: DashboardMyProfileUpdatePayload) =>
     httpClient.patch<DashboardUserDetails>("/dashboard/users/me/", payload),
   updateMeProfilePic: (payload: FormData) =>

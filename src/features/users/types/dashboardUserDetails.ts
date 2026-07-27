@@ -108,3 +108,8 @@ export type DashboardStudentProfileUpdatePayload = {
   bio: string | null;
   languages: number[];
 };
+
+export type DashboardResetPasswordResponse = {
+  detail: string;
+  user_id: number;
+};

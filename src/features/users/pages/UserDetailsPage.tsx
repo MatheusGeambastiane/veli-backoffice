@@ -9,7 +9,19 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { Check, MapPin, Pencil, UserRound, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  KeyRound,
+  MapPin,
+  Pencil,
+  RotateCcw,
+  ShieldCheck,
+  UserRound,
+  X,
+} from "lucide-react";
+import { useSessionUser } from "@/shared/auth/useSessionUser";
+import { HttpError } from "@/shared/lib/http/http";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Button } from "@/shared/components/ui/button";
@@ -17,6 +29,7 @@ import {
   useDashboardUserById,
   usePatchStudentProfile,
   usePatchTeacherProfile,
+  useResetDashboardUserPassword,
   useUpdateDashboardUser,
 } from "@/features/users/queries/usersQueries";
 import type { DashboardUserDetails } from "@/features/users/types/dashboardUserDetails";
@@ -24,6 +37,8 @@ import type { DashboardUserDetails } from "@/features/users/types/dashboardUserD
 type UserDetailsPageProps = {
   userId: string;
 };
+
+const DEFAULT_USER_PASSWORD = "V3l135c0l4";
 
 type PersonalFormState = {
   username: string;
@@ -141,13 +156,16 @@ function normalizeRoleCode(role?: string | null) {
 }
 
 export function UserDetailsPage({ userId }: UserDetailsPageProps) {
+  const { user: authenticatedUser } = useSessionUser();
   const { data, isLoading, isError } = useDashboardUserById(userId);
   const updateUser = useUpdateDashboardUser(userId);
+  const resetPassword = useResetDashboardUserPassword(userId);
   const patchTeacherProfile = usePatchTeacherProfile(userId);
   const patchStudentProfile = usePatchStudentProfile(userId);
-  const [activeTab, setActiveTab] = useState<"personal" | "profile">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "profile" | "system">("personal");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasCopiedPassword, setHasCopiedPassword] = useState(false);
   const [personalForm, setPersonalForm] = useState<PersonalFormState>(DEFAULT_PERSONAL_FORM);
   const [addressForm, setAddressForm] = useState<AddressFormState>(DEFAULT_ADDRESS_FORM);
   const [teacherForm, setTeacherForm] = useState<TeacherFormState>(DEFAULT_TEACHER_FORM);
@@ -161,6 +179,8 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
     const name = `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim();
     return name || data.username || data.email;
   }, [data]);
+  const authenticatedRole = authenticatedUser?.role?.toLowerCase();
+  const canManageSystem = authenticatedRole === "administrative" || authenticatedRole === "manager";
 
   useEffect(() => {
     if (!data) return;
@@ -224,6 +244,9 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const handleCancel = () => {
     if (!data) return;
     setIsEditing(false);
+    setActiveTab("personal");
+    setHasCopiedPassword(false);
+    resetPassword.reset();
     setPersonalForm({
       username: data.username ?? "",
       email: data.email ?? "",
@@ -309,6 +332,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
       }
 
       setIsEditing(false);
+      setActiveTab("personal");
     } finally {
       setIsSaving(false);
     }
@@ -323,6 +347,25 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
     const previewUrl = URL.createObjectURL(file);
     setProfilePicFile(file);
     setProfilePicPreview(previewUrl);
+  };
+
+  const handleResetPassword = async () => {
+    setHasCopiedPassword(false);
+    try {
+      await resetPassword.mutateAsync();
+    } catch {
+      // O erro da mutation é exibido na própria aba Sistema.
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(DEFAULT_USER_PASSWORD);
+      setHasCopiedPassword(true);
+      window.setTimeout(() => setHasCopiedPassword(false), 2000);
+    } catch {
+      setHasCopiedPassword(false);
+    }
   };
 
   if (isLoading) {
@@ -352,9 +395,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
               onChange={handleProfilePicChange}
             />
             {isEditing && (
-              <span className="text-xs text-muted-foreground">
-                Clique na foto para alterar
-              </span>
+              <span className="text-xs text-muted-foreground">Clique na foto para alterar</span>
             )}
           </div>
           <div>
@@ -369,11 +410,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
         <div className="flex flex-wrap items-center gap-2">
           {data.languages?.length ? (
             data.languages.map((language) => (
-              <LanguageIcon
-                key={language.id}
-                src={language.lang_icon}
-                label={language.name}
-              />
+              <LanguageIcon key={language.id} src={language.lang_icon} label={language.name} />
             ))
           ) : (
             <span className="text-xs text-muted-foreground">Sem idiomas em destaque</span>
@@ -385,22 +422,29 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
         <legend className="sr-only">Dados do usuario</legend>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
-            <TabButton
-              isActive={activeTab === "personal"}
-              onClick={() => setActiveTab("personal")}
-            >
+            <TabButton isActive={activeTab === "personal"} onClick={() => setActiveTab("personal")}>
               Dados pessoais
             </TabButton>
-            <TabButton
-              isActive={activeTab === "profile"}
-              onClick={() => setActiveTab("profile")}
-            >
+            <TabButton isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")}>
               {profileTabLabel}
             </TabButton>
+            {isEditing && canManageSystem && (
+              <TabButton isActive={activeTab === "system"} onClick={() => setActiveTab("system")}>
+                Sistema
+              </TabButton>
+            )}
           </div>
           <button
             type="button"
-            onClick={() => (isEditing ? handleCancel() : setIsEditing(true))}
+            onClick={() => {
+              if (isEditing) {
+                handleCancel();
+                return;
+              }
+              resetPassword.reset();
+              setHasCopiedPassword(false);
+              setIsEditing(true);
+            }}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             aria-label={isEditing ? "Cancelar edicao" : "Editar dados do usuario"}
           >
@@ -417,13 +461,33 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
               setAddressForm={setAddressForm}
               isEditing={isEditing}
             />
-          ) : (
+          ) : activeTab === "profile" ? (
             <ProfileTab
               data={data}
               teacherForm={teacherForm}
               setTeacherForm={setTeacherForm}
               studentForm={studentForm}
               setStudentForm={setStudentForm}
+              isEditing={isEditing}
+            />
+          ) : canManageSystem && isEditing ? (
+            <SystemTab
+              userName={fullName}
+              isResetting={resetPassword.isPending}
+              successMessage={resetPassword.data?.detail}
+              errorMessage={
+                resetPassword.error ? normalizeResetPasswordError(resetPassword.error) : null
+              }
+              hasCopiedPassword={hasCopiedPassword}
+              onResetPassword={handleResetPassword}
+              onCopyPassword={handleCopyPassword}
+            />
+          ) : (
+            <PersonalTab
+              formState={personalForm}
+              setFormState={setPersonalForm}
+              addressForm={addressForm}
+              setAddressForm={setAddressForm}
               isEditing={isEditing}
             />
           )}
@@ -435,14 +499,109 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
               <X className="h-4 w-4" />
               Cancelar
             </Button>
-            <Button type="button" onClick={handleSave} disabled={isSaving}>
-              <Check className="h-4 w-4" />
-              {isSaving ? "Salvando..." : "Salvar alteracoes"}
-            </Button>
+            {activeTab !== "system" && (
+              <Button type="button" onClick={handleSave} disabled={isSaving}>
+                <Check className="h-4 w-4" />
+                {isSaving ? "Salvando..." : "Salvar alteracoes"}
+              </Button>
+            )}
           </div>
         )}
       </fieldset>
     </section>
+  );
+}
+
+function SystemTab({
+  userName,
+  isResetting,
+  successMessage,
+  errorMessage,
+  hasCopiedPassword,
+  onResetPassword,
+  onCopyPassword,
+}: {
+  userName: string;
+  isResetting: boolean;
+  successMessage?: string;
+  errorMessage: string | null;
+  hasCopiedPassword: boolean;
+  onResetPassword: () => Promise<void>;
+  onCopyPassword: () => Promise<void>;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <ShieldCheck className="h-5 w-5" />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Acesso ao sistema</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Redefina a senha de {userName} para a senha padrão do sistema.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Senha do usuário</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Esta ação substitui a senha atual pela senha padrão.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => void onResetPassword()}
+            disabled={isResetting}
+            className="shrink-0 rounded-2xl"
+          >
+            <RotateCcw className={`h-4 w-4 ${isResetting ? "animate-spin" : ""}`} />
+            {isResetting ? "Redefinindo..." : "Resetar senha"}
+          </Button>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {errorMessage}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          role="status"
+          className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-4"
+        >
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Check className="h-4 w-4 text-primary" />
+            {successMessage}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <code className="flex min-h-10 flex-1 items-center rounded-xl border border-border bg-background px-3 font-mono text-sm font-semibold tracking-wide text-foreground">
+              {DEFAULT_USER_PASSWORD}
+            </code>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void onCopyPassword()}
+              className="rounded-xl"
+            >
+              {hasCopiedPassword ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {hasCopiedPassword ? "Copiada" : "Copiar senha"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -528,9 +687,7 @@ function PersonalTab({
             label="CEP"
             value={addressForm.zip_code}
             isEditing={isEditing}
-            onChange={(value) =>
-              setAddressForm((current) => ({ ...current, zip_code: value }))
-            }
+            onChange={(value) => setAddressForm((current) => ({ ...current, zip_code: value }))}
           />
           <Field
             label="Rua"
@@ -550,9 +707,7 @@ function PersonalTab({
             label="Bairro"
             value={addressForm.neighborhood}
             isEditing={isEditing}
-            onChange={(value) =>
-              setAddressForm((current) => ({ ...current, neighborhood: value }))
-            }
+            onChange={(value) => setAddressForm((current) => ({ ...current, neighborhood: value }))}
           />
           <Field
             label="Cidade"
@@ -578,6 +733,18 @@ function PersonalTab({
   );
 }
 
+function normalizeResetPasswordError(error: unknown) {
+  if (error instanceof HttpError) {
+    const details = error.details;
+    if (typeof details === "string" && details) return details;
+    if (details && typeof details === "object" && "detail" in details) {
+      const detail = details.detail;
+      if (typeof detail === "string" && detail) return detail;
+    }
+  }
+  return "Não foi possível redefinir a senha do usuário.";
+}
+
 function ProfileTab({
   data,
   teacherForm,
@@ -595,7 +762,9 @@ function ProfileTab({
 }) {
   if (data.role === "teacher") {
     if (!data.teacher_profile) {
-      return <p className="text-sm text-muted-foreground">Nenhum perfil de professor cadastrado.</p>;
+      return (
+        <p className="text-sm text-muted-foreground">Nenhum perfil de professor cadastrado.</p>
+      );
     }
 
     const langLevels = data.teacher_profile.lang_levels;
@@ -771,7 +940,11 @@ function normalizeGenderCode(gender?: string | null) {
   const normalized = gender.toLowerCase();
   if (normalized === "masculino") return "M";
   if (normalized === "feminino") return "F";
-  if (normalized === "não-binário" || normalized === "nao-binario" || normalized === "nao binario") {
+  if (
+    normalized === "não-binário" ||
+    normalized === "nao-binario" ||
+    normalized === "nao binario"
+  ) {
     return "N";
   }
   if (normalized === "outro") return "O";
@@ -887,7 +1060,9 @@ function ProfileAvatar({
         disabled={!isEditable}
         className={[
           "relative h-16 w-16 overflow-hidden rounded-3xl",
-          isEditable ? "cursor-pointer ring-2 ring-transparent hover:ring-primary/40" : "cursor-default",
+          isEditable
+            ? "cursor-pointer ring-2 ring-transparent hover:ring-primary/40"
+            : "cursor-default",
         ].join(" ")}
         aria-label={isEditable ? "Alterar foto de perfil" : "Foto de perfil"}
       >
@@ -904,7 +1079,9 @@ function ProfileAvatar({
       disabled={!isEditable}
       className={[
         "flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 text-lg font-semibold text-primary",
-        isEditable ? "cursor-pointer ring-2 ring-transparent hover:ring-primary/40" : "cursor-default",
+        isEditable
+          ? "cursor-pointer ring-2 ring-transparent hover:ring-primary/40"
+          : "cursor-default",
       ].join(" ")}
       aria-label={isEditable ? "Alterar foto de perfil" : "Foto de perfil"}
     >
