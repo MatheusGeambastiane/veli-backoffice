@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Poppins } from "next/font/google";
 import {
   BadgeDollarSign,
   BriefcaseBusiness,
@@ -42,11 +41,6 @@ const financialItems: NavItem[] = [
 ];
 const mobileNavItems = [...navItems, ...financialItems];
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
 export function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -59,31 +53,34 @@ export function Sidebar() {
           isCollapsed ? "w-20 px-3" : "w-64 px-4",
         ].join(" ")}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative h-15 w-15 overflow-hidden rounded-2xl">
-              <Image
-                src="/Veli_simbolo azul escuro sem fundo.png"
-                alt="Veli"
-                fill
-                className="object-contain p-1.5"
-                sizes="44px"
-                priority
-              />
-            </div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className={`${poppins.className} veli-logo-text text-xl font-semibold tracking-wide`}>
-                  Veli
-                </span>
-                {/* <span className="text-xs text-muted-foreground">Backoffice</span> */}
-              </div>
-            )}
+        <div
+          className={[
+            "relative mb-6 flex items-center justify-center",
+            isCollapsed ? "flex-col gap-3" : "",
+          ].join(" ")}
+        >
+          <div
+            className={[
+              "relative overflow-hidden rounded-xl",
+              isCollapsed ? "h-[25px] w-10" : "h-[45px] w-[73px]",
+            ].join(" ")}
+          >
+            <Image
+              src="/Veli_logo fundo azul médio.png"
+              alt="Veli"
+              fill
+              className="rounded-xl object-contain"
+              sizes={isCollapsed ? "40px" : "73px"}
+              priority
+            />
           </div>
           <button
             type="button"
             onClick={() => setIsCollapsed((current) => !current)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className={[
+              "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+              isCollapsed ? "" : "absolute right-0",
+            ].join(" ")}
             aria-label={isCollapsed ? "Expandir menu" : "Recolher menu"}
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
