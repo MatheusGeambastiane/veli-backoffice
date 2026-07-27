@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, MapPin, Pencil, UserRound, X } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Button } from "@/shared/components/ui/button";
@@ -34,6 +34,16 @@ type PersonalFormState = {
   date_of_birth: string;
   gender: string;
   role: string;
+};
+
+type AddressFormState = {
+  zip_code: string;
+  street: string;
+  address_number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  country: string;
 };
 
 type TeacherFormState = {
@@ -62,6 +72,16 @@ const DEFAULT_PERSONAL_FORM: PersonalFormState = {
   role: "",
 };
 
+const DEFAULT_ADDRESS_FORM: AddressFormState = {
+  zip_code: "",
+  street: "",
+  address_number: "",
+  neighborhood: "",
+  city: "",
+  state: "",
+  country: "",
+};
+
 const DEFAULT_TEACHER_FORM: TeacherFormState = {
   profileId: null,
   hourly_rate: "",
@@ -84,10 +104,10 @@ function parseIds(value: string) {
     .filter((item) => Number.isFinite(item) && item > 0);
 }
 
-function createFormData(payload: PersonalFormState) {
+function createFormData(personal: PersonalFormState, address: AddressFormState) {
   const formData = new FormData();
-  (Object.keys(payload) as Array<keyof PersonalFormState>).forEach((key) => {
-    const value = payload[key] ?? "";
+  (Object.keys(personal) as Array<keyof PersonalFormState>).forEach((key) => {
+    const value = personal[key] ?? "";
     if (key === "gender") {
       formData.append(key, normalizeGenderCode(value));
       return;
@@ -97,6 +117,9 @@ function createFormData(payload: PersonalFormState) {
       return;
     }
     formData.append(key, value);
+  });
+  (Object.keys(address) as Array<keyof AddressFormState>).forEach((key) => {
+    formData.append(`address.${key}`, address[key] ?? "");
   });
   return formData;
 }
@@ -126,6 +149,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [personalForm, setPersonalForm] = useState<PersonalFormState>(DEFAULT_PERSONAL_FORM);
+  const [addressForm, setAddressForm] = useState<AddressFormState>(DEFAULT_ADDRESS_FORM);
   const [teacherForm, setTeacherForm] = useState<TeacherFormState>(DEFAULT_TEACHER_FORM);
   const [studentForm, setStudentForm] = useState<StudentFormState>(DEFAULT_STUDENT_FORM);
   const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null);
@@ -149,6 +173,15 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
       date_of_birth: data.date_of_birth ?? "",
       gender: normalizeGenderCode(data.gender),
       role: normalizeRoleCode(data.role),
+    });
+    setAddressForm({
+      zip_code: data.address?.zip_code ?? "",
+      street: data.address?.street ?? "",
+      address_number: data.address?.address_number ?? "",
+      neighborhood: data.address?.neighborhood ?? "",
+      city: data.address?.city ?? "",
+      state: data.address?.state ?? "",
+      country: data.address?.country ?? "",
     });
     if (profilePicPreview?.startsWith("blob:")) {
       URL.revokeObjectURL(profilePicPreview);
@@ -201,6 +234,15 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
       gender: normalizeGenderCode(data.gender),
       role: normalizeRoleCode(data.role),
     });
+    setAddressForm({
+      zip_code: data.address?.zip_code ?? "",
+      street: data.address?.street ?? "",
+      address_number: data.address?.address_number ?? "",
+      neighborhood: data.address?.neighborhood ?? "",
+      city: data.address?.city ?? "",
+      state: data.address?.state ?? "",
+      country: data.address?.country ?? "",
+    });
     if (profilePicPreview?.startsWith("blob:")) {
       URL.revokeObjectURL(profilePicPreview);
     }
@@ -236,7 +278,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
     if (!data) return;
     setIsSaving(true);
     try {
-      const formData = createFormData(personalForm);
+      const formData = createFormData(personalForm, addressForm);
       if (profilePicFile) {
         formData.append("profile_pic", profilePicFile);
       }
@@ -369,9 +411,10 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
         <div className="px-6 py-6">
           {activeTab === "personal" ? (
             <PersonalTab
-              data={data}
               formState={personalForm}
               setFormState={setPersonalForm}
+              addressForm={addressForm}
+              setAddressForm={setAddressForm}
               isEditing={isEditing}
             />
           ) : (
@@ -404,66 +447,133 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
 }
 
 function PersonalTab({
-  data,
   formState,
   setFormState,
+  addressForm,
+  setAddressForm,
   isEditing,
 }: {
-  data: DashboardUserDetails;
   formState: PersonalFormState;
   setFormState: Dispatch<SetStateAction<PersonalFormState>>;
+  addressForm: AddressFormState;
+  setAddressForm: Dispatch<SetStateAction<AddressFormState>>;
   isEditing: boolean;
 }) {
   return (
-    <div className="grid gap-5 md:grid-cols-2">
-      <Field
-        label="Username"
-        value={formState.username}
-        isEditing={isEditing}
-        onChange={(value) => setFormState((current) => ({ ...current, username: value }))}
-      />
-      <Field
-        label="Email"
-        value={formState.email}
-        isEditing={isEditing}
-        type="email"
-        onChange={(value) => setFormState((current) => ({ ...current, email: value }))}
-      />
-      <Field
-        label="Nome"
-        value={formState.first_name}
-        isEditing={isEditing}
-        onChange={(value) => setFormState((current) => ({ ...current, first_name: value }))}
-      />
-      <Field
-        label="Sobrenome"
-        value={formState.last_name}
-        isEditing={isEditing}
-        onChange={(value) => setFormState((current) => ({ ...current, last_name: value }))}
-      />
-      <Field
-        label="CPF"
-        value={formState.cpf}
-        isEditing={isEditing}
-        onChange={(value) => setFormState((current) => ({ ...current, cpf: value }))}
-      />
-      <Field
-        label="Data de nascimento"
-        value={formState.date_of_birth}
-        isEditing={isEditing}
-        placeholder="01/01/2000"
-        onChange={(value) => setFormState((current) => ({ ...current, date_of_birth: value }))}
-      />
-      <GenderField
-        value={formState.gender}
-        isEditing={isEditing}
-        onChange={(value) => setFormState((current) => ({ ...current, gender: value }))}
-      />
-      <RoleField
-        value={formState.role}
-        isEditing={isEditing}
-        onChange={(value) => setFormState((current) => ({ ...current, role: value }))}
-      />
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <UserRound className="h-4 w-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">Dados pessoais</h2>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field
+            label="Username"
+            value={formState.username}
+            isEditing={isEditing}
+            onChange={(value) => setFormState((current) => ({ ...current, username: value }))}
+          />
+          <Field
+            label="Email"
+            value={formState.email}
+            isEditing={isEditing}
+            type="email"
+            onChange={(value) => setFormState((current) => ({ ...current, email: value }))}
+          />
+          <Field
+            label="Nome"
+            value={formState.first_name}
+            isEditing={isEditing}
+            onChange={(value) => setFormState((current) => ({ ...current, first_name: value }))}
+          />
+          <Field
+            label="Sobrenome"
+            value={formState.last_name}
+            isEditing={isEditing}
+            onChange={(value) => setFormState((current) => ({ ...current, last_name: value }))}
+          />
+          <Field
+            label="CPF"
+            value={formState.cpf}
+            isEditing={isEditing}
+            onChange={(value) => setFormState((current) => ({ ...current, cpf: value }))}
+          />
+          <Field
+            label="Data de nascimento"
+            value={formState.date_of_birth}
+            isEditing={isEditing}
+            placeholder="01/01/2000"
+            onChange={(value) => setFormState((current) => ({ ...current, date_of_birth: value }))}
+          />
+          <GenderField
+            value={formState.gender}
+            isEditing={isEditing}
+            onChange={(value) => setFormState((current) => ({ ...current, gender: value }))}
+          />
+          <RoleField
+            value={formState.role}
+            isEditing={isEditing}
+            onChange={(value) => setFormState((current) => ({ ...current, role: value }))}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">Endereço</h2>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field
+            label="CEP"
+            value={addressForm.zip_code}
+            isEditing={isEditing}
+            onChange={(value) =>
+              setAddressForm((current) => ({ ...current, zip_code: value }))
+            }
+          />
+          <Field
+            label="Rua"
+            value={addressForm.street}
+            isEditing={isEditing}
+            onChange={(value) => setAddressForm((current) => ({ ...current, street: value }))}
+          />
+          <Field
+            label="Número"
+            value={addressForm.address_number}
+            isEditing={isEditing}
+            onChange={(value) =>
+              setAddressForm((current) => ({ ...current, address_number: value }))
+            }
+          />
+          <Field
+            label="Bairro"
+            value={addressForm.neighborhood}
+            isEditing={isEditing}
+            onChange={(value) =>
+              setAddressForm((current) => ({ ...current, neighborhood: value }))
+            }
+          />
+          <Field
+            label="Cidade"
+            value={addressForm.city}
+            isEditing={isEditing}
+            onChange={(value) => setAddressForm((current) => ({ ...current, city: value }))}
+          />
+          <Field
+            label="Estado"
+            value={addressForm.state}
+            isEditing={isEditing}
+            onChange={(value) => setAddressForm((current) => ({ ...current, state: value }))}
+          />
+          <Field
+            label="País"
+            value={addressForm.country}
+            isEditing={isEditing}
+            onChange={(value) => setAddressForm((current) => ({ ...current, country: value }))}
+          />
+        </div>
+      </div>
     </div>
   );
 }
