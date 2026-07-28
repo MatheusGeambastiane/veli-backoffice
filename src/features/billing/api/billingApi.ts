@@ -10,8 +10,12 @@ import type {
   EmployeePaymentDetails,
   EmployeePaymentsSummary,
   EmployeePaymentSimpleEmployee,
+  LatestReceivedPaymentsResponse,
   MonthlyPlanPayments,
   MonthlyPlanPaymentsParams,
+  ReceivedPaymentDetails,
+  ReceivedPaymentsParams,
+  ReceivedPaymentsResponse,
 } from "@/features/billing/types/billingDashboard";
 
 export const billingApi = {
@@ -49,6 +53,28 @@ export const billingApi = {
       `/dashboard/billing/monthly-plan-payments/?${searchParams.toString()}`,
     );
   },
+  latestReceivedPayments: () =>
+    httpClient.get<LatestReceivedPaymentsResponse>("/dashboard/billing/latest-received-payments/"),
+  receivedPayments: (params: ReceivedPaymentsParams) => {
+    const searchParams = new URLSearchParams({
+      page: String(params.page),
+      page_size: String(params.page_size),
+    });
+
+    if (params.search) {
+      searchParams.set("search", params.search);
+    }
+
+    if (params.month) {
+      searchParams.set("month", params.month);
+    }
+
+    return httpClient.get<ReceivedPaymentsResponse>(
+      `/dashboard/billing/received-payments/?${searchParams.toString()}`,
+    );
+  },
+  receivedPaymentDetails: (id: string) =>
+    httpClient.get<ReceivedPaymentDetails>(`/dashboard/billing/received-payments/${id}/`),
   bills: (params: BillingSummaryParams) => {
     const searchParams = new URLSearchParams();
 

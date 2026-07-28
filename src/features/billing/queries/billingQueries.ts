@@ -6,6 +6,7 @@ import type {
   CreateBillPayload,
   CreateEmployeePaymentPayload,
   MonthlyPlanPaymentsParams,
+  ReceivedPaymentsParams,
 } from "@/features/billing/types/billingDashboard";
 
 export const billingKeys = {
@@ -13,6 +14,11 @@ export const billingKeys = {
   summary: (params: BillingSummaryParams) => [...billingKeys.all, "summary", params] as const,
   monthlyPlanPayments: (params: MonthlyPlanPaymentsParams) =>
     [...billingKeys.all, "monthly-plan-payments", params] as const,
+  latestReceivedPayments: () => [...billingKeys.all, "latest-received-payments"] as const,
+  receivedPayments: (params: ReceivedPaymentsParams) =>
+    [...billingKeys.all, "received-payments", params] as const,
+  receivedPaymentDetails: (id: string) =>
+    [...billingKeys.all, "received-payments", "detail", id] as const,
   employeePayments: () => [...billingKeys.all, "employee-payments"] as const,
   employeePaymentsSummary: (params: BillingSummaryParams) =>
     [...billingKeys.employeePayments(), "summary", params] as const,
@@ -42,6 +48,37 @@ export function useMonthlyPlanPayments(params: MonthlyPlanPaymentsParams) {
     queryFn: () => billingApi.monthlyPlanPayments(params),
     enabled: status === "authenticated" && Boolean(params.month),
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useLatestReceivedPayments() {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: billingKeys.latestReceivedPayments(),
+    queryFn: billingApi.latestReceivedPayments,
+    enabled: status === "authenticated",
+  });
+}
+
+export function useReceivedPayments(params: ReceivedPaymentsParams) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: billingKeys.receivedPayments(params),
+    queryFn: () => billingApi.receivedPayments(params),
+    enabled: status === "authenticated",
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useReceivedPaymentDetails(id: string) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: billingKeys.receivedPaymentDetails(id),
+    queryFn: () => billingApi.receivedPaymentDetails(id),
+    enabled: status === "authenticated" && Boolean(id),
   });
 }
 

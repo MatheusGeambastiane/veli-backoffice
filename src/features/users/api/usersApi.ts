@@ -39,6 +39,8 @@ export const usersApi = {
     httpClient.patch<DashboardUserDetails>(`/dashboard/users/${id}/`, payload),
   resetDashboardUserPassword: (id: string) =>
     httpClient.post<DashboardResetPasswordResponse>(`/dashboard/users/${id}/reset-password/`),
+  resetMyPassword: (payload: { new_password: string }) =>
+    httpClient.post<DashboardResetPasswordResponse>("/dashboard/auth/reset-password/", payload),
   updateMe: (payload: DashboardMyProfileUpdatePayload) =>
     httpClient.patch<DashboardUserDetails>("/dashboard/users/me/", payload),
   updateMeProfilePic: (payload: FormData) =>

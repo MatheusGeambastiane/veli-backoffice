@@ -136,12 +136,12 @@ export function MonthlyPlanPaymentsChart({ month }: { month: string }) {
   const totals = data?.totals;
 
   return (
-    <Card className="overflow-hidden rounded-[2rem] border-slate-200/80 dark:border-white/10">
+    <Card className="h-full overflow-hidden rounded-[2rem] border-slate-200/80 dark:border-white/10">
       <div className="h-1 bg-[linear-gradient(90deg,#10b981_0_33%,#f59e0b_33%_66%,#f43f5e_66%)]" />
       <CardHeader className="gap-4 pb-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="text-lg">Mensalidades do mês</CardTitle>
+            <CardTitle className="text-lg">Mensalidades</CardTitle>
             {isFetching && !isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : null}

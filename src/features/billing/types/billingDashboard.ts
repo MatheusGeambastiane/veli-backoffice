@@ -18,6 +18,10 @@ export type BillingSummaryTotals = {
   employee_payments_amount: number;
   total_expenses_amount: number;
   caixa?: number;
+  total_available_asaas?: number;
+  asaas_balance_source?: string;
+  asaas_balance_cached?: boolean;
+  asaas_balance_synced_at?: string | null;
 };
 
 export type BillingAmountByOffer = {
@@ -42,6 +46,10 @@ export type BillingSummary = {
   period: BillingSummaryPeriod;
   totals: BillingSummaryTotals;
   caixa?: number;
+  total_available_asaas?: number;
+  asaas_balance_source?: string;
+  asaas_balance_cached?: boolean;
+  asaas_balance_synced_at?: string | null;
   billed_amount_by_offer: BillingAmountByOffer[];
   asaas_status: AsaasStatusSummary[];
 };
@@ -106,6 +114,146 @@ export type MonthlyPlanPayments = {
   };
   totals: MonthlyPlanPaymentTotals;
   plans: MonthlyPlanPaymentPlan[];
+};
+
+export type LatestReceivedPaymentUser = {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  cpf: string;
+  phone: string;
+};
+
+export type LatestReceivedPaymentOffer = {
+  id: number;
+  name: string;
+  price: string;
+  is_active: boolean;
+};
+
+export type LatestReceivedPayment = {
+  id: number;
+  order: number;
+  user: LatestReceivedPaymentUser;
+  offer: LatestReceivedPaymentOffer;
+  payment_mode: "monthly" | "one_time" | string;
+  cycle_number: number | null;
+  cycle_numbers: number[];
+  is_advance_payment: boolean;
+  is_payoff: boolean;
+  is_one_time: boolean;
+  is_monthly: boolean;
+  gateway: string;
+  gateway_charge_id: string;
+  billing_method: "pix" | "credit_card" | string;
+  amount_gross: string;
+  fee_amount: string;
+  amount_net: string;
+  paid_at: string;
+  origin: string;
+};
+
+export type LatestReceivedPaymentsResponse = {
+  count: number;
+  results: LatestReceivedPayment[];
+};
+
+export type ReceivedPaymentsParams = {
+  search?: string;
+  month?: string;
+  page: number;
+  page_size: number;
+};
+
+export type ReceivedPaymentsResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: LatestReceivedPayment[];
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_amount: number;
+};
+
+export type ReceivedPaymentBillingOption = {
+  id: number;
+  code: string;
+  type: string;
+  cycle: string;
+  billing_method: string;
+  price: string;
+  allowed_installments: number[];
+  is_active: boolean;
+};
+
+export type ReceivedPaymentOrder = {
+  id: number;
+  status: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  payment_mode: string;
+  payment_type: string;
+  payment_installments: number | null;
+  billing_day: number | null;
+  next_billing_at: string | null;
+  created_at: string;
+};
+
+export type ReceivedPaymentOfferDetails = LatestReceivedPaymentOffer & {
+  campaign: {
+    id: number;
+    name: string;
+    start_date: string;
+    finish_date: string;
+  } | null;
+  plan_type: string;
+  billing_interval_months: number | null;
+  billing_options: ReceivedPaymentBillingOption[];
+};
+
+export type ReceivedPaymentStudentClass = {
+  id: number;
+  course: number;
+  course_name: string;
+  language_icon: string | null;
+  teacher_profile: number | null;
+  teacher_full_name: string;
+  start_date: string;
+  finish_date: string;
+  time: string;
+  days_of_week: string[];
+  duration: number;
+  classroom_link: string | null;
+  is_active: boolean;
+  is_generic: boolean;
+};
+
+export type ReceivedPaymentDetails = Omit<LatestReceivedPayment, "order" | "offer"> & {
+  order: ReceivedPaymentOrder;
+  offer: ReceivedPaymentOfferDetails;
+  student_class: ReceivedPaymentStudentClass | null;
+  billing_option: ReceivedPaymentBillingOption | null;
+  billing_subscription: {
+    id: number;
+    status: string;
+    gateway_subscription_id: string;
+    next_due_date: string | null;
+    cancel_at_period_end: boolean;
+  } | null;
+  gateway_invoice_number: string | null;
+  gateway_status: string;
+  status: string;
+  installments: number | null;
+  due_date: string | null;
+  available_at: string | null;
+  receipt_url: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type EmployeePaymentStatus = "pending" | "paid" | "canceled";

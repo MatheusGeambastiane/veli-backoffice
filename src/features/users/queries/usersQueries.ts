@@ -76,6 +76,12 @@ export function useResetDashboardUserPassword(id: string) {
   });
 }
 
+export function useResetMyPassword() {
+  return useMutation({
+    mutationFn: (payload: { new_password: string }) => usersApi.resetMyPassword(payload),
+  });
+}
+
 export function useUpdateMyProfile() {
   const queryClient = useQueryClient();
 

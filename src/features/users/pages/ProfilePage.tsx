@@ -11,19 +11,29 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { Camera, Check, LoaderCircle, Pencil, Shield, UserRound, X } from "lucide-react";
+import {
+  Camera,
+  Check,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+  Pencil,
+  Shield,
+  UserRound,
+  X,
+} from "lucide-react";
 import { HttpError } from "@/shared/lib/http/http";
 import { cn } from "@/shared/lib/utils";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Button } from "@/shared/components/ui/button";
-import {
-  useLanguageLevels,
-  useLanguagesSimple,
-} from "@/features/courses/queries/coursesQueries";
+import { useLanguageLevels, useLanguagesSimple } from "@/features/courses/queries/coursesQueries";
 import type { LanguageLevel } from "@/features/courses/types/course";
 import {
   useMyProfile,
+  useResetMyPassword,
   useUpdateMyProfile,
   useUpdateMyProfilePhoto,
 } from "@/features/users/queries/usersQueries";
@@ -96,7 +106,7 @@ export function ProfilePage() {
   const updatePhoto = useUpdateMyProfilePhoto();
   const { data: languageLevels } = useLanguageLevels();
   const { data: languages } = useLanguagesSimple();
-  const [activeTab, setActiveTab] = useState<"personal" | "professional">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "professional" | "system">("personal");
   const [isEditing, setIsEditing] = useState(false);
   const [personalForm, setPersonalForm] = useState<PersonalFormState>(DEFAULT_PERSONAL_FORM);
   const [addressForm, setAddressForm] = useState<AddressFormState>(DEFAULT_ADDRESS_FORM);
@@ -260,7 +270,9 @@ export function ProfilePage() {
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Meu perfil</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                  Meu perfil
+                </p>
                 <h1 className="text-3xl font-semibold text-foreground">{fullName}</h1>
                 <p className="text-sm text-muted-foreground">@{data.username}</p>
               </div>
@@ -269,11 +281,7 @@ export function ProfilePage() {
                   {roleLabel(data.role)}
                 </span>
                 {data.languages?.map((language) => (
-                  <LanguageTag
-                    key={language.id}
-                    label={language.name}
-                    icon={language.lang_icon}
-                  />
+                  <LanguageTag key={language.id} label={language.name} icon={language.lang_icon} />
                 ))}
                 {data.languages?.length === 0 && (
                   <span className="text-xs text-muted-foreground">Sem idiomas em destaque</span>
@@ -322,6 +330,9 @@ export function ProfilePage() {
                 Perfil profissional
               </TabButton>
             )}
+            <TabButton isActive={activeTab === "system"} onClick={() => setActiveTab("system")}>
+              Sistema
+            </TabButton>
           </div>
         </div>
 
@@ -334,7 +345,7 @@ export function ProfilePage() {
               setAddressForm={setAddressForm}
               isEditing={isEditing}
             />
-          ) : (
+          ) : activeTab === "professional" ? (
             <ProfessionalTab
               data={data}
               formState={professionalForm}
@@ -343,6 +354,8 @@ export function ProfilePage() {
               languageLevels={professionalLevelOptions}
               languageNameMap={languageNameMap}
             />
+          ) : (
+            <SystemTab />
           )}
         </div>
       </div>
@@ -354,6 +367,276 @@ export function ProfilePage() {
       )}
     </section>
   );
+}
+
+function SystemTab() {
+  const resetPassword = useResetMyPassword();
+  const [isResetting, setIsResetting] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const passwordStrength = getPasswordStrength(newPassword);
+  const passwordsMatch = newPassword === passwordConfirmation;
+  const canSubmit =
+    newPassword.length >= 8 &&
+    Boolean(passwordConfirmation) &&
+    passwordsMatch &&
+    !resetPassword.isPending;
+
+  function openResetForm() {
+    setFormError(null);
+    setSuccessMessage(null);
+    setIsResetting(true);
+  }
+
+  function closeResetForm() {
+    setNewPassword("");
+    setPasswordConfirmation("");
+    setShowPasswords(false);
+    setFormError(null);
+    setIsResetting(false);
+  }
+
+  async function handlePasswordReset(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+    setSuccessMessage(null);
+
+    if (newPassword.length < 8) {
+      setFormError("A nova senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
+    if (!passwordsMatch) {
+      setFormError("As senhas nao coincidem.");
+      return;
+    }
+
+    try {
+      const response = await resetPassword.mutateAsync({ new_password: newPassword });
+      setSuccessMessage(response?.detail || "Senha alterada com sucesso.");
+      closeResetForm();
+    } catch (error) {
+      setFormError(normalizeErrorMessage(error, "Nao foi possivel alterar a senha."));
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Shield className="h-4 w-4 text-primary" />
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Sistema</h2>
+          <p className="text-sm text-muted-foreground">
+            Gerencie as credenciais usadas para acessar sua conta.
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-2xl rounded-3xl border border-border bg-muted/20 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-primary/10 p-2.5 text-primary">
+              <KeyRound className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Senha de acesso</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Defina uma nova senha segura para a sua conta.
+              </p>
+            </div>
+          </div>
+
+          {!isResetting && (
+            <Button type="button" onClick={openResetForm} className="rounded-2xl">
+              <LockKeyhole className="h-4 w-4" />
+              Resetar senha
+            </Button>
+          )}
+        </div>
+
+        {isResetting && (
+          <form
+            onSubmit={handlePasswordReset}
+            className="mt-6 space-y-5 border-t border-border pt-6"
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <PasswordField
+                id="new-password"
+                label="Nova senha"
+                value={newPassword}
+                showPassword={showPasswords}
+                onChange={setNewPassword}
+                onToggleVisibility={() => setShowPasswords((current) => !current)}
+              />
+              <PasswordField
+                id="confirm-password"
+                label="Confirmar senha"
+                value={passwordConfirmation}
+                showPassword={showPasswords}
+                onChange={setPasswordConfirmation}
+                onToggleVisibility={() => setShowPasswords((current) => !current)}
+              />
+            </div>
+
+            <PasswordStrength strength={passwordStrength} hasPassword={Boolean(newPassword)} />
+
+            {passwordConfirmation && !passwordsMatch && (
+              <p className="text-sm text-destructive">As senhas nao coincidem.</p>
+            )}
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeResetForm}
+                disabled={resetPassword.isPending}
+                className="rounded-2xl"
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={!canSubmit} className="rounded-2xl">
+                {resetPassword.isPending ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                {resetPassword.isPending ? "Alterando..." : "Alterar senha"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {successMessage && (
+        <div className="max-w-2xl rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+          {successMessage}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  showPassword,
+  onChange,
+  onToggleVisibility,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  showPassword: boolean;
+  onChange: (value: string) => void;
+  onToggleVisibility: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={showPassword ? "text" : "password"}
+          value={value}
+          autoComplete="new-password"
+          onChange={(event) => onChange(event.target.value)}
+          className="rounded-2xl pr-11"
+        />
+        <button
+          type="button"
+          onClick={onToggleVisibility}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={
+            showPassword ? `Ocultar ${label.toLowerCase()}` : `Mostrar ${label.toLowerCase()}`
+          }
+        >
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PasswordStrength({
+  strength,
+  hasPassword,
+}: {
+  strength: ReturnType<typeof getPasswordStrength>;
+  hasPassword: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <Label>Forca da senha</Label>
+        <span
+          className={cn(
+            "text-xs font-semibold",
+            hasPassword ? strength.textClass : "text-muted-foreground",
+          )}
+        >
+          {hasPassword ? strength.label : "Digite uma senha"}
+        </span>
+      </div>
+      <div
+        className="grid grid-cols-4 gap-2"
+        aria-label={`Forca da senha: ${hasPassword ? strength.label : "nao informada"}`}
+      >
+        {[1, 2, 3, 4].map((segment) => (
+          <span
+            key={segment}
+            className={cn(
+              "h-1.5 rounded-full transition-colors",
+              hasPassword && segment <= strength.level ? strength.barClass : "bg-border",
+            )}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Use ao menos 8 caracteres e combine letras maiusculas, minusculas, numeros e simbolos.
+      </p>
+    </div>
+  );
+}
+
+function getPasswordStrength(password: string) {
+  const checks = [
+    password.length >= 8,
+    /[a-z]/.test(password) && /[A-Z]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ];
+  const score = checks.filter(Boolean).length;
+
+  if (score <= 1) {
+    return { level: 1, label: "Fraca", barClass: "bg-destructive", textClass: "text-destructive" };
+  }
+  if (score === 2) {
+    return {
+      level: 2,
+      label: "Razoavel",
+      barClass: "bg-amber-500",
+      textClass: "text-amber-600 dark:text-amber-400",
+    };
+  }
+  if (score === 3) {
+    return {
+      level: 3,
+      label: "Boa",
+      barClass: "bg-sky-500",
+      textClass: "text-sky-600 dark:text-sky-400",
+    };
+  }
+  return {
+    level: 4,
+    label: "Forte",
+    barClass: "bg-emerald-500",
+    textClass: "text-emerald-600 dark:text-emerald-400",
+  };
 }
 
 function PersonalAndAddressTab({
@@ -370,7 +653,7 @@ function PersonalAndAddressTab({
   isEditing: boolean;
 }) {
   const [cepLookupState, setCepLookupState] = useState<"idle" | "loading" | "success" | "error">(
-    "idle"
+    "idle",
   );
   const [cepLookupMessage, setCepLookupMessage] = useState<string | null>(null);
   const lastLoadedCepRef = useRef<string | null>(null);
@@ -406,7 +689,9 @@ function PersonalAndAddressTab({
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setCepLookupState("error");
-      setCepLookupMessage(error instanceof Error ? error.message : "Nao foi possivel buscar o CEP.");
+      setCepLookupMessage(
+        error instanceof Error ? error.message : "Nao foi possivel buscar o CEP.",
+      );
     }
   }
 
@@ -525,7 +810,7 @@ function PersonalAndAddressTab({
                   <p
                     className={cn(
                       "text-xs",
-                      cepLookupState === "error" ? "text-destructive" : "text-muted-foreground"
+                      cepLookupState === "error" ? "text-destructive" : "text-muted-foreground",
                     )}
                   >
                     {cepLookupMessage}
@@ -556,9 +841,7 @@ function PersonalAndAddressTab({
             label="Bairro"
             value={addressForm.neighborhood}
             isEditing={isEditing}
-            onChange={(value) =>
-              setAddressForm((current) => ({ ...current, neighborhood: value }))
-            }
+            onChange={(value) => setAddressForm((current) => ({ ...current, neighborhood: value }))}
           />
           <Field
             label="Cidade"
@@ -610,18 +893,12 @@ function ProfessionalTab({
       )}
 
       <div className="grid gap-5 md:grid-cols-2">
-        <Field
-          label="Valor hora"
-          value={formState.hourly_rate}
-          isEditing={false}
-        />
+        <Field label="Valor hora" value={formState.hourly_rate} isEditing={false} />
         <Field
           label="CNPJ"
           value={formState.cnpj}
           isEditing={isEditing}
-          onChange={(value) =>
-            setFormState((current) => ({ ...current, cnpj: formatCnpj(value) }))
-          }
+          onChange={(value) => setFormState((current) => ({ ...current, cnpj: formatCnpj(value) }))}
           inputMode="numeric"
         />
         <TextAreaField
@@ -659,7 +936,8 @@ function ProfessionalTab({
                     }}
                   />
                   <span className="text-muted-foreground">
-                    {languageNameMap.get(level.language) ?? `Idioma ${level.language}`} - {level.level}
+                    {languageNameMap.get(level.language) ?? `Idioma ${level.language}`} -{" "}
+                    {level.level}
                   </span>
                 </label>
               );
@@ -677,7 +955,8 @@ function ProfessionalTab({
                   key={level.id}
                   className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground"
                 >
-                  {languageNameMap.get(level.language) ?? `Idioma ${level.language}`} - {level.level}
+                  {languageNameMap.get(level.language) ?? `Idioma ${level.language}`} -{" "}
+                  {level.level}
                 </span>
               ))}
           </div>
@@ -877,7 +1156,7 @@ function syncFormWithData(
   data: DashboardUserDetails,
   setPersonalForm: Dispatch<SetStateAction<PersonalFormState>>,
   setAddressForm: Dispatch<SetStateAction<AddressFormState>>,
-  setProfessionalForm: Dispatch<SetStateAction<ProfessionalFormState>>
+  setProfessionalForm: Dispatch<SetStateAction<ProfessionalFormState>>,
 ) {
   setPersonalForm({
     username: data.username ?? "",
@@ -926,7 +1205,7 @@ function TabButton({
         "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
         isActive
           ? "bg-primary text-primary-foreground shadow-sm"
-          : "bg-muted/40 text-muted-foreground hover:text-foreground"
+          : "bg-muted/40 text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -947,7 +1226,7 @@ function ProfileAvatar({
 }) {
   const frameClass = cn(
     "relative h-24 w-24 overflow-hidden rounded-full border-4 border-primary/20 bg-background shadow-sm",
-    isEditable && "cursor-pointer transition-transform hover:scale-[1.02]"
+    isEditable && "cursor-pointer transition-transform hover:scale-[1.02]",
   );
 
   if (src) {
@@ -969,7 +1248,10 @@ function ProfileAvatar({
       type="button"
       onClick={isEditable ? onClick : undefined}
       disabled={!isEditable}
-      className={cn(frameClass, "flex items-center justify-center text-3xl font-semibold text-primary")}
+      className={cn(
+        frameClass,
+        "flex items-center justify-center text-3xl font-semibold text-primary",
+      )}
       aria-label={isEditable ? "Alterar foto de perfil" : "Foto de perfil"}
     >
       {name.charAt(0).toUpperCase() || "U"}
@@ -1016,7 +1298,7 @@ function GenderField({
   );
 }
 
-function normalizeErrorMessage(error: unknown) {
+function normalizeErrorMessage(error: unknown, fallback = "Nao foi possivel salvar o perfil.") {
   if (error instanceof HttpError) {
     const details = error.details;
     if (typeof details === "string") return details;
@@ -1030,5 +1312,5 @@ function normalizeErrorMessage(error: unknown) {
       if (values.length) return values.join(" ");
     }
   }
-  return "Nao foi possivel salvar o perfil.";
+  return fallback;
 }

@@ -17,6 +17,7 @@ import {
   Filter,
   GraduationCap,
   HandCoins,
+  Info,
   Loader2,
   Plus,
   Receipt,
@@ -29,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { LatestReceivedPaymentsList } from "@/features/billing/components/LatestReceivedPaymentsList";
 import { MonthlyPlanPaymentsChart } from "@/features/billing/components/MonthlyPlanPaymentsChart";
 import {
   useBillingSummary,
@@ -164,6 +166,18 @@ function formatCurrencyString(value?: string | number | null) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return "-";
   return currencyFormatter.format(parsed);
+}
+
+function formatAsaasSyncDate(value?: string | null) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return `Última sincronização: ${date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  })}`;
 }
 
 function formatMoneyInput(value: string) {
@@ -689,8 +703,9 @@ export function BillingDashboardPage() {
     {
       title: "Caixa",
       value: formatCurrency(cashAmount),
-      helperLabel: "Receita - despesas",
-      helperValue: hasActiveFilter ? "Periodo filtrado" : "Acumulado dos meses",
+      helperLabel: "Disponível no Asaas",
+      helperValue: formatCurrency(totals?.total_available_asaas),
+      helperTooltip: formatAsaasSyncDate(totals?.asaas_balance_synced_at),
       icon: HandCoins,
       cardClass:
         "border-teal-200/80 bg-card text-teal-950 hover:border-teal-500/25 hover:bg-teal-500/[0.04] dark:border-teal-500/20 dark:text-teal-50",
@@ -703,6 +718,7 @@ export function BillingDashboardPage() {
       value: formatCurrency(totals?.total_billed_amount),
       helperLabel: "Disponivel sem taxas",
       helperValue: formatCurrency(totals?.asaas_amount_gross),
+      helperTooltip: null,
       icon: CircleDollarSign,
       cardClass:
         "border-emerald-200/80 bg-card text-emerald-950 hover:border-emerald-500/25 hover:bg-emerald-500/[0.04] dark:border-emerald-500/20 dark:text-emerald-50",
@@ -717,6 +733,7 @@ export function BillingDashboardPage() {
       helperValue: formatCurrency(
         (totals?.bills_amount ?? 0) + (totals?.employee_payments_amount ?? 0),
       ),
+      helperTooltip: null,
       icon: Wallet,
       cardClass:
         "border-rose-200/80 bg-card text-rose-950 hover:border-rose-500/25 hover:bg-rose-500/[0.04] dark:border-rose-500/20 dark:text-rose-50",
@@ -727,8 +744,9 @@ export function BillingDashboardPage() {
     {
       title: "Ordens pagas",
       value: numberFormatter.format(totals?.paid_orders_count ?? 0),
-      helperLabel: "Pagamentos pagos",
+      helperLabel: "Pagamentos recebidos",
       helperValue: numberFormatter.format(totals?.paid_payments_count ?? 0),
+      helperTooltip: null,
       icon: ClipboardCheck,
       cardClass:
         "border-blue-200/80 bg-card text-blue-950 hover:border-blue-500/25 hover:bg-blue-500/[0.04] dark:border-blue-500/20 dark:text-blue-50",
@@ -997,6 +1015,7 @@ export function BillingDashboardPage() {
             value={isLoading ? "..." : metric.value}
             helperLabel={metric.helperLabel}
             helperValue={isLoading ? "..." : metric.helperValue}
+            helperTooltip={isLoading ? null : metric.helperTooltip}
             icon={<metric.icon className="h-5 w-5" />}
             cardClass={metric.cardClass}
             gradientClass={metric.gradientClass}
@@ -1005,7 +1024,10 @@ export function BillingDashboardPage() {
         ))}
       </div>
 
-      <MonthlyPlanPaymentsChart month={appliedParams.month ?? currentMonth} />
+      <div className="grid items-stretch gap-6 2xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.75fr)]">
+        <MonthlyPlanPaymentsChart month={appliedParams.month ?? currentMonth} />
+        <LatestReceivedPaymentsList />
+      </div>
 
       <Card>
         <CardHeader className="gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1783,6 +1805,7 @@ function BillingMetricCard({
   value,
   helperLabel,
   helperValue,
+  helperTooltip,
   icon,
   cardClass,
   gradientClass,
@@ -1792,6 +1815,7 @@ function BillingMetricCard({
   value: string;
   helperLabel: string;
   helperValue: string;
+  helperTooltip?: string | null;
   icon: ReactNode;
   cardClass: string;
   gradientClass: string;
@@ -1819,8 +1843,25 @@ function BillingMetricCard({
             {icon}
           </span>
         </div>
-        <div className="mt-5 rounded-lg border border-white/55 bg-white/65 px-3 py-2 dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs text-slate-600 dark:text-white/60">{helperLabel}</p>
+        <div className="relative mt-5 rounded-lg border border-white/55 bg-white/65 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+          <div
+            className={cn(
+              "group/tooltip flex w-fit items-center gap-1.5",
+              helperTooltip && "cursor-help",
+            )}
+            tabIndex={helperTooltip ? 0 : undefined}
+          >
+            <p className="text-xs text-slate-600 dark:text-white/60">{helperLabel}</p>
+            {helperTooltip && <Info className="h-3.5 w-3.5 text-slate-500 dark:text-white/50" />}
+            {helperTooltip && (
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-max max-w-[min(16rem,calc(100vw-3rem))] rounded-lg bg-slate-950 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 dark:bg-white dark:text-slate-950"
+              >
+                {helperTooltip}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{helperValue}</p>
         </div>
       </CardContent>
