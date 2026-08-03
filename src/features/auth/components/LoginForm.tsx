@@ -45,7 +45,7 @@ export function LoginForm() {
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+    <form method="post" className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-2.5">
         <Label htmlFor="email" className="text-[13px] font-semibold text-[#E2E8F0]">
           Email
