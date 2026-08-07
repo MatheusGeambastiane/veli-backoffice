@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "@/shared/auth/getServerSession";
 import { Sidebar } from "@/shared/components/layout/Sidebar";
 import { Topbar } from "@/shared/components/layout/Topbar";
+import { AssistantWidget } from "@/features/assistant/components/AssistantWidget";
 
 export default async function ProtectedLayout({
   children,
@@ -30,6 +31,7 @@ export default async function ProtectedLayout({
       <div className="lg:hidden">
         <Sidebar />
       </div>
+      <AssistantWidget />
     </div>
   );
 }
