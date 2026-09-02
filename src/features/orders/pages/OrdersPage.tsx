@@ -1,19 +1,12 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import {
-  BadgeDollarSign,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Search,
-  ShoppingCart,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Filter, Search } from "lucide-react";
 import { useOrdersList } from "@/features/orders/queries/ordersQueries";
 import type { OrderListItem, OrderPreferencePeriod } from "@/features/orders/types/order";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { DataSurface, PageHeader, PageStat, PageToolbar } from "@/shared/components/ui/page";
 import { cn } from "@/shared/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -34,10 +27,10 @@ const ENROLLMENT_OPTIONS = [
 ] as const;
 
 const PERIOD_OPTIONS: Array<{ value: OrderPreferencePeriod; label: string }> = [
-  { value: "morning", label: "Manha" },
+  { value: "morning", label: "Manhã" },
   { value: "afternoon", label: "Tarde" },
   { value: "night", label: "Noite" },
-  { value: "no_preference", label: "Sem preferencia" },
+  { value: "no_preference", label: "Sem preferência" },
 ];
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -137,7 +130,7 @@ export function OrdersPage() {
 
   const pageLabel = useMemo(() => {
     const safePage = Math.min(page, totalPages);
-    return `Pagina ${safePage} de ${totalPages}`;
+    return `Página ${safePage} de ${totalPages}`;
   }, [page, totalPages]);
 
   function handlePageSizeChange(nextSize: number) {
@@ -147,9 +140,7 @@ export function OrdersPage() {
 
   function togglePreferencePeriod(period: OrderPreferencePeriod) {
     setPreferencePeriods((current) =>
-      current.includes(period)
-        ? current.filter((item) => item !== period)
-        : [...current, period]
+      current.includes(period) ? current.filter((item) => item !== period) : [...current, period],
     );
     setPage(1);
   }
@@ -176,39 +167,13 @@ export function OrdersPage() {
 
   return (
     <section className="space-y-6">
-      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_34%),radial-gradient(circle_at_85%_15%,rgba(249,115,22,0.12),transparent_24%)]" />
-        <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
-              <BadgeDollarSign className="h-3.5 w-3.5" />
-              Financeiro
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Pedidos
-              </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Acompanhe pedidos, status de pagamento e preferencia de turma dos alunos.
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        title="Pedidos"
+        description="Acompanhe pedidos, pagamentos e preferências de turma dos alunos."
+        actions={<PageStat label="Total" value={totalCount} />}
+      />
 
-          <div className="rounded-[1.75rem] border border-orange-500/20 bg-orange-500/10 px-5 py-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-700">
-                <ShoppingCart className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</p>
-                <p className="text-2xl font-semibold text-foreground">{totalCount}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-[2rem] border border-border bg-card p-4 shadow-sm">
+      <PageToolbar>
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_180px_180px_170px_170px_auto] xl:items-end">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Busca</label>
@@ -221,7 +186,7 @@ export function OrdersPage() {
                   setPage(1);
                 }}
                 placeholder="Nome, email ou CPF"
-                className="h-11 rounded-2xl pl-9"
+                className="h-11 pl-9"
                 aria-label="Buscar pedidos por nome, email ou CPF"
               />
             </div>
@@ -235,7 +200,7 @@ export function OrdersPage() {
                 setStatus(event.target.value);
                 setPage(1);
               }}
-              className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none"
+              className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               aria-label="Filtrar por status"
             >
               {STATUS_OPTIONS.map((option) => (
@@ -254,8 +219,8 @@ export function OrdersPage() {
                 setIsGenericFilter(event.target.value as "" | "true" | "false");
                 setPage(1);
               }}
-              className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none"
-              aria-label="Filtrar por enturmacao"
+              className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+              aria-label="Filtrar por enturmação"
             >
               {ENROLLMENT_OPTIONS.map((option) => (
                 <option key={option.value || "all"} value={option.value}>
@@ -266,7 +231,7 @@ export function OrdersPage() {
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-foreground">Data inicio</span>
+            <span className="text-sm font-medium text-foreground">Data inicial</span>
             <Input
               type="date"
               value={dateFrom}
@@ -274,7 +239,7 @@ export function OrdersPage() {
                 setDateFrom(event.target.value);
                 setPage(1);
               }}
-              className="h-11 rounded-2xl"
+              className="h-11"
               aria-label="Filtrar data inicial"
             />
           </label>
@@ -288,13 +253,13 @@ export function OrdersPage() {
                 setDateTo(event.target.value);
                 setPage(1);
               }}
-              className="h-11 rounded-2xl"
+              className="h-11"
               aria-label="Filtrar data final"
             />
           </label>
 
           <div className="flex flex-wrap gap-2 xl:justify-end">
-            <Button type="button" variant="outline" className="h-11 rounded-2xl" onClick={clearFilters}>
+            <Button type="button" variant="outline" className="h-11" onClick={clearFilters}>
               <Filter className="h-4 w-4" />
               Limpar
             </Button>
@@ -310,10 +275,10 @@ export function OrdersPage() {
                 type="button"
                 onClick={() => togglePreferencePeriod(option.value)}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
+                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                   isSelected
                     ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border bg-background text-muted-foreground hover:bg-accent"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent",
                 )}
               >
                 {option.label}
@@ -321,7 +286,7 @@ export function OrdersPage() {
             );
           })}
         </div>
-      </div>
+      </PageToolbar>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <PaginationBar
@@ -333,13 +298,13 @@ export function OrdersPage() {
           isFetching={isFetching}
         />
 
-        <label className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-          <span className="text-xs uppercase tracking-wide">Page size</span>
+        <label className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+          <span className="text-xs font-medium">Itens por página</span>
           <select
             value={pageSize}
             onChange={(event) => handlePageSizeChange(Number(event.target.value))}
             className="bg-transparent text-sm font-semibold text-foreground focus:outline-none"
-            aria-label="Selecionar tamanho da pagina"
+            aria-label="Selecionar itens por página"
           >
             {PAGE_SIZE_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -350,8 +315,8 @@ export function OrdersPage() {
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-[2rem] border border-border bg-card/95 shadow-sm">
-        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] gap-4 border-b border-border/80 bg-muted/20 px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground xl:grid">
+      <DataSurface>
+        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] gap-4 border-b border-border/80 bg-muted/20 px-6 py-4 text-xs font-medium text-muted-foreground xl:grid">
           <span>Aluno</span>
           <span>Status</span>
           <span>Turma</span>
@@ -361,9 +326,9 @@ export function OrdersPage() {
 
         {isLoading && (
           <div className="space-y-3 px-6 py-6">
-            <div className="h-20 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-20 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-20 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-20 animate-pulse rounded-md bg-muted" />
+            <div className="h-20 animate-pulse rounded-md bg-muted" />
+            <div className="h-20 animate-pulse rounded-md bg-muted" />
           </div>
         )}
 
@@ -384,7 +349,7 @@ export function OrdersPage() {
             ))}
           </ul>
         )}
-      </div>
+      </DataSurface>
 
       <PaginationBar
         pageLabel={pageLabel}
@@ -404,39 +369,33 @@ function OrderRow({ order }: { order: OrderListItem }) {
   return (
     <li className="grid gap-4 px-4 py-4 sm:px-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] xl:items-center">
       <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground xl:hidden">
-          Aluno
-        </p>
+        <p className="text-xs font-medium text-muted-foreground xl:hidden">Aluno</p>
         <p className="truncate text-sm font-semibold text-foreground">{order.user.full_name}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">{order.user.email}</p>
         <p className="mt-1 text-xs text-muted-foreground">CPF: {order.user.cpf ?? "-"}</p>
       </div>
 
       <div>
-        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground xl:hidden">
-          Status
-        </p>
+        <p className="text-xs font-medium text-muted-foreground xl:hidden">Status</p>
         <span
           className={cn(
-            "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+            "inline-flex rounded-full px-3 py-1 text-xs font-medium",
             order.status === "active"
-              ? "bg-emerald-500/10 text-emerald-700"
+              ? "bg-success/10 text-success"
               : order.status === "waiting_payment"
-                ? "bg-orange-500/10 text-orange-700"
-                : "bg-muted text-muted-foreground"
+                ? "bg-warning/15 text-warning-foreground"
+                : "bg-muted text-muted-foreground",
           )}
         >
           {statusLabel(order.status)}
         </span>
         <p className="mt-2 text-xs text-muted-foreground">
-          {order.billing_option?.name ?? "Sem billing option"}
+          {order.billing_option?.name ?? "Sem opção de cobrança"}
         </p>
       </div>
 
       <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground xl:hidden">
-          Turma
-        </p>
+        <p className="text-xs font-medium text-muted-foreground xl:hidden">Turma</p>
         {classPreference ? (
           <>
             <div className="flex min-w-0 items-center gap-2">
@@ -444,7 +403,7 @@ function OrderRow({ order }: { order: OrderListItem }) {
                 {classPreference.course_name}
               </p>
               {classPreference.is_generic && (
-                <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                <span className="shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
                   Genérica
                 </span>
               )}
@@ -457,7 +416,7 @@ function OrderRow({ order }: { order: OrderListItem }) {
             </p>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">Sem preferencia</p>
+          <p className="text-sm text-muted-foreground">Sem preferência</p>
         )}
       </div>
 
@@ -470,9 +429,7 @@ function OrderRow({ order }: { order: OrderListItem }) {
 function DataCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-sm text-muted-foreground">
-      <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground xl:hidden">
-        {label}
-      </p>
+      <p className="text-xs font-medium text-muted-foreground xl:hidden">{label}</p>
       <p className="font-medium text-foreground">{value}</p>
     </div>
   );
@@ -494,11 +451,11 @@ function PaginationBar({
   isFetching: boolean;
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-3 rounded-3xl border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-1 flex-col gap-3 rounded-lg border border-border/80 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <CalendarDays className="h-4 w-4" />
         <span>{pageLabel}</span>
-        {isFetching && <span className="text-xs uppercase tracking-wide">Atualizando...</span>}
+        {isFetching && <span className="text-xs">Atualizando...</span>}
       </div>
 
       <div className="flex items-center gap-2">
@@ -508,20 +465,12 @@ function PaginationBar({
           size="sm"
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="rounded-2xl"
         >
           <ChevronLeft className="h-4 w-4" />
           Anterior
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onNext}
-          disabled={!canGoNext}
-          className="rounded-2xl"
-        >
-          Proxima
+        <Button type="button" variant="outline" size="sm" onClick={onNext} disabled={!canGoNext}>
+          Próxima
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

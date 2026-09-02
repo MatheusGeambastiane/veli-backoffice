@@ -2,13 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
-  Search,
-  Users as UsersIcon,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Search } from "lucide-react";
 import { useDashboardUsersList } from "@/features/users/queries/usersQueries";
 import type {
   DashboardLanguage,
@@ -16,6 +10,7 @@ import type {
   DashboardUserRoleFilter,
 } from "@/features/users/types/dashboardUser";
 import { Input } from "@/shared/components/ui/input";
+import { DataSurface, PageHeader, PageStat, PageToolbar } from "@/shared/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [20, 30, 50, 100] as const;
 
@@ -87,7 +82,7 @@ export function UsersListPage() {
 
   const pageLabel = useMemo(() => {
     const safePage = Math.min(page, totalPages);
-    return `Pagina ${safePage} de ${totalPages}`;
+    return `Página ${safePage} de ${totalPages}`;
   }, [page, totalPages]);
 
   const canGoPrevious = previousPageFromApi !== null || page > 1;
@@ -115,24 +110,13 @@ export function UsersListPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">Gestao de acessos</p>
-          <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">Usuarios</h1>
-          <p className="text-sm text-muted-foreground">Busque, filtre e acompanhe o time ativo.</p>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-2 shadow-sm">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <UsersIcon className="h-5 w-5" />
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">Total</span>
-            <span className="text-lg font-semibold text-foreground">{totalCount}</span>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Usuários"
+        description="Busque, filtre e acompanhe os acessos da equipe."
+        actions={<PageStat label="Total" value={totalCount} />}
+      />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <PageToolbar className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -142,18 +126,18 @@ export function UsersListPage() {
               setPage(1);
             }}
             placeholder="Buscar por nome, email ou telefone"
-            className="h-11 rounded-2xl border-border bg-card pl-9 shadow-sm"
-            aria-label="Buscar usuarios"
+            className="h-11 bg-background pl-9"
+            aria-label="Buscar usuários"
           />
         </div>
         <div className="flex items-center justify-between gap-3 lg:justify-end">
-          <label className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-            <span className="text-xs uppercase tracking-wide">Page size</span>
+          <label className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+            <span className="text-xs font-medium">Itens por página</span>
             <select
               value={pageSize}
               onChange={(event) => handlePageSizeChange(Number(event.target.value))}
               className="bg-transparent text-sm font-semibold text-foreground focus:outline-none"
-              aria-label="Selecionar tamanho da pagina"
+              aria-label="Selecionar itens por página"
             >
               {PAGE_SIZE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -163,7 +147,7 @@ export function UsersListPage() {
             </select>
           </label>
         </div>
-      </div>
+      </PageToolbar>
 
       <div className="flex flex-wrap gap-2">
         {ROLE_OPTIONS.map((option) => {
@@ -174,9 +158,9 @@ export function UsersListPage() {
               type="button"
               onClick={() => handleRoleChange(option.value)}
               className={[
-                "rounded-2xl border px-4 py-2 text-sm font-medium transition-colors",
+                "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "border-primary/20 bg-primary text-primary-foreground shadow-sm"
+                  ? "border-primary/20 bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:text-foreground",
               ].join(" ")}
             >
@@ -197,31 +181,31 @@ export function UsersListPage() {
         isFetching={isFetching}
       />
 
-      <div className="overflow-hidden rounded-3xl border border-border bg-card/95 shadow-sm">
-        <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto_auto] gap-3 border-b border-border/80 bg-muted/30 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
-          <span>Usuario</span>
+      <DataSurface>
+        <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto_auto] gap-3 border-b border-border/80 bg-muted/30 px-5 py-3 text-xs font-medium text-muted-foreground lg:grid">
+          <span>Usuário</span>
           <span>Telefone</span>
           <span>Email</span>
           <span>Perfil</span>
           <span>Idiomas</span>
-          <span className="text-right">Acoes</span>
+          <span className="text-right">Ações</span>
         </div>
 
         {isLoading && (
           <div className="space-y-3 px-5 py-6">
-            <div className="h-16 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-16 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-16 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-16 animate-pulse rounded-md bg-muted" />
+            <div className="h-16 animate-pulse rounded-md bg-muted" />
+            <div className="h-16 animate-pulse rounded-md bg-muted" />
           </div>
         )}
 
         {isError && (
-          <div className="px-5 py-6 text-sm text-destructive">Erro ao carregar usuarios.</div>
+          <div className="px-5 py-6 text-sm text-destructive">Erro ao carregar usuários.</div>
         )}
 
         {!isLoading && !isError && users.length === 0 && (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Nenhum usuario encontrado para os filtros atuais.
+            Nenhum usuário encontrado para os filtros atuais.
           </div>
         )}
 
@@ -232,7 +216,7 @@ export function UsersListPage() {
             ))}
           </ul>
         )}
-      </div>
+      </DataSurface>
 
       <UsersPagination
         page={page}
@@ -272,7 +256,7 @@ function UsersPagination({
   const safePage = Math.min(page, totalPages);
 
   return (
-    <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card/80 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-border/80 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-sm text-muted-foreground">
         {pageLabel}
         {isFetching && <span className="ml-2 text-xs text-primary">Atualizando...</span>}
@@ -282,21 +266,21 @@ function UsersPagination({
           type="button"
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="inline-flex h-10 items-center gap-2 rounded-2xl border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ChevronLeft className="h-4 w-4" />
           Anterior
         </button>
-        <div className="rounded-2xl border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground">
+        <div className="rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground">
           {safePage}/{totalPages}
         </div>
         <button
           type="button"
           onClick={onNext}
           disabled={!canGoNext}
-          className="inline-flex h-10 items-center gap-2 rounded-2xl border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Proxima
+          Próxima
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
@@ -340,7 +324,9 @@ function UsersRow({ user }: { user: DashboardUser }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {languages.length === 0 && <span className="text-xs text-muted-foreground">Sem idiomas</span>}
+          {languages.length === 0 && (
+            <span className="text-xs text-muted-foreground">Sem idiomas</span>
+          )}
           {languages.slice(0, 4).map((language) => {
             const meta = getLanguageMeta(language);
             return <LanguageBadge key={meta.key} label={meta.label} image={meta.image} />;
@@ -355,7 +341,7 @@ function UsersRow({ user }: { user: DashboardUser }) {
         <div className="flex justify-end">
           <Link
             href={`/users/${user.id}`}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             aria-label={`Abrir perfil de ${fullName}`}
           >
             <MoreHorizontal className="h-5 w-5" />
@@ -368,12 +354,12 @@ function UsersRow({ user }: { user: DashboardUser }) {
 
 function Avatar({ src, name }: { src: string | null; name: string }) {
   if (src) {
-    return <img src={src} alt={name} className="h-12 w-12 rounded-2xl object-cover" />;
+    return <img src={src} alt={name} className="h-12 w-12 rounded-md object-cover" />;
   }
 
   const initial = name.charAt(0).toUpperCase();
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-sm font-semibold text-primary">
+    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary/10 text-sm font-semibold text-primary">
       {initial || "U"}
     </div>
   );

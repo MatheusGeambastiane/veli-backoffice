@@ -55,7 +55,7 @@ export function LoginForm() {
           type="email"
           placeholder="mariaprofessora@example.com"
           autoComplete="email"
-          className="h-12 rounded-xl border-white/[0.08] bg-[#111827] px-4 text-[15px] text-[#F8FAFC] placeholder:text-[#64748B] transition-colors duration-200 hover:border-[rgba(59,130,246,0.25)] focus-visible:border-[#3B82F6] focus-visible:ring-4 focus-visible:ring-[rgba(59,130,246,0.12)] sm:h-[52px] sm:text-base"
+          className="h-12 rounded-md border-white/10 bg-[#111827] px-4 text-[15px] text-[#F8FAFC] placeholder:text-[#64748B] hover:border-blue-400/30 focus-visible:border-[#3B82F6] focus-visible:ring-[#3B82F6]/20 sm:h-[52px] sm:text-base"
           {...register("email")}
         />
         {errors.email ? (
@@ -71,7 +71,7 @@ export function LoginForm() {
           </Label>
           <button
             type="button"
-            className="rounded-md text-[13px] font-medium text-[#60A5FA] transition-colors duration-200 hover:text-[#93C5FD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1120]"
+            className="rounded-md text-[13px] font-medium text-[#60A5FA] transition-colors hover:text-[#93C5FD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1120]"
           >
             Esqueceu a senha?
           </button>
@@ -82,7 +82,7 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             placeholder="Secret123!"
             autoComplete="current-password"
-            className="h-12 rounded-xl border-white/[0.08] bg-[#111827] px-4 pr-12 text-[15px] text-[#F8FAFC] placeholder:text-[#64748B] transition-colors duration-200 hover:border-[rgba(59,130,246,0.25)] focus-visible:border-[#3B82F6] focus-visible:ring-4 focus-visible:ring-[rgba(59,130,246,0.12)] sm:h-[52px] sm:text-base"
+            className="h-12 rounded-md border-white/10 bg-[#111827] px-4 pr-12 text-[15px] text-[#F8FAFC] placeholder:text-[#64748B] hover:border-blue-400/30 focus-visible:border-[#3B82F6] focus-visible:ring-[#3B82F6]/20 sm:h-[52px] sm:text-base"
             {...register("password")}
           />
           <button
@@ -107,7 +107,7 @@ export function LoginForm() {
       ) : null}
       <Button
         type="submit"
-        className="h-12 w-full rounded-xl bg-[linear-gradient(90deg,_#2563EB,_#3B82F6)] text-[15px] font-semibold text-[#F8FAFC] shadow-none transition-all duration-200 hover:-translate-y-px hover:brightness-110 hover:shadow-[0_8px_30px_rgba(37,99,235,0.35)] active:translate-y-0 focus-visible:ring-4 focus-visible:ring-[rgba(59,130,246,0.18)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1120] sm:h-[52px]"
+        className="h-12 w-full rounded-md bg-[#2563EB] text-[15px] font-semibold text-white shadow-none hover:bg-[#1D4ED8] focus-visible:ring-[#3B82F6]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1120] sm:h-[52px]"
         disabled={isSubmitting}
       >
         {isSubmitting ? "Entrando..." : "Entrar na plataforma"}

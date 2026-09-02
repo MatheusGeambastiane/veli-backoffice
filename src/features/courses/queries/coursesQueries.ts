@@ -4,10 +4,9 @@ import type {
   CoursesParams,
   CreateCoursePayload,
   CreateModulePayload,
-  Exercise,
   ExercisesResponse,
   Lesson,
-  ModuleDetails,
+  LessonCaptionCue,
   UpdateCoursePayload,
   UpdateModulePayload,
 } from "@/features/courses/types/course";
@@ -35,6 +34,8 @@ export const coursesKeys = {
   exercisesSimple: () => [...coursesKeys.all, "exercises-simple"] as const,
   lessonDetails: () => [...coursesKeys.all, "lesson-detail"] as const,
   lessonDetail: (id: string) => [...coursesKeys.lessonDetails(), id] as const,
+  lessonCaptions: () => [...coursesKeys.all, "lesson-caption"] as const,
+  lessonCaption: (id: string) => [...coursesKeys.lessonCaptions(), id] as const,
   lists: () => [...coursesKeys.all, "list"] as const,
   list: (params: CoursesParams) => [...coursesKeys.lists(), params] as const,
   details: () => [...coursesKeys.all, "detail"] as const,
@@ -131,6 +132,55 @@ export function useLessonDetails(id: string) {
     queryKey: coursesKeys.lessonDetail(id),
     queryFn: () => coursesApi.getLessonById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useLessonCaption(id: string) {
+  return useQuery({
+    queryKey: coursesKeys.lessonCaption(id),
+    queryFn: () => coursesApi.getLessonCaption(id),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "pending" || status === "processing" ? 5000 : false;
+    },
+  });
+}
+
+export function useGenerateLessonCaption(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => coursesApi.generateLessonCaption(id),
+    onSuccess: (caption) => {
+      queryClient.setQueryData(coursesKeys.lessonCaption(id), caption);
+      queryClient.invalidateQueries({ queryKey: coursesKeys.lessonDetails() });
+    },
+  });
+}
+
+export function useUpdateLessonCaptionCues(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      cues: LessonCaptionCue[];
+      position_percent: number;
+      text_color: string;
+    }) => coursesApi.updateLessonCaptionCues(id, payload),
+    onSuccess: (caption) => {
+      queryClient.setQueryData(coursesKeys.lessonCaption(id), caption);
+      queryClient.invalidateQueries({ queryKey: coursesKeys.lessonDetails() });
+    },
+  });
+}
+
+export function usePublishLessonCaption(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => coursesApi.publishLessonCaption(id),
+    onSuccess: (caption) => {
+      queryClient.setQueryData(coursesKeys.lessonCaption(id), caption);
+      queryClient.invalidateQueries({ queryKey: coursesKeys.lessonDetails() });
+    },
   });
 }
 

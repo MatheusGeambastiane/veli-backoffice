@@ -122,11 +122,43 @@ export type Lesson = {
   content: string | null;
   module: number;
   is_weekly: boolean;
+  caption?: LessonCaption | null;
 };
 
 export type LessonDetails = Omit<Lesson, "exercise"> & {
   exercise: Exercise | null;
   description?: string | null;
+};
+
+export type LessonCaptionStatus =
+  | "pending"
+  | "processing"
+  | "review"
+  | "published"
+  | "outdated"
+  | "failed";
+
+export type LessonCaptionCue = {
+  id?: number;
+  sequence: number;
+  start_ms: number;
+  end_ms: number;
+  text: string;
+  confidence?: string | null;
+};
+
+export type LessonCaption = {
+  id: number;
+  language: string;
+  label: string;
+  position_percent: number;
+  text_color: string;
+  status: LessonCaptionStatus;
+  failure_reason: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  cues: LessonCaptionCue[];
 };
 
 export type ExerciseQuestion = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText, Film, Pencil, Save } from "lucide-react";
+import { FileText, Film, Pencil, Save } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -13,11 +13,21 @@ import {
   useUpdateLesson,
 } from "@/features/courses/queries/coursesQueries";
 import type { Lesson } from "@/features/courses/types/course";
+import { LessonCaptionEditor } from "@/features/courses/components/lesson-caption-editor";
+import { LessonVideoPlayer } from "@/features/courses/components/lesson-video-player";
 
 type LessonDetailsPageProps = {
   moduleId: string;
   lessonId: string;
 };
+
+type LessonTypeFilter = "all" | Lesson["lesson_type"];
+
+const LESSON_FILTERS: Array<{ label: string; value: LessonTypeFilter }> = [
+  { label: "Todos", value: "all" },
+  { label: "Assíncrono", value: "asynchronous" },
+  { label: "Ao vivo", value: "live" },
+];
 
 export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps) {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -25,9 +35,16 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
   const [editExerciseId, setEditExerciseId] = useState<number | "">("");
   const [editContentFile, setEditContentFile] = useState<File | null>(null);
   const [editContentPreview, setEditContentPreview] = useState<string | null>(null);
+  const [generateCaptionFromUpload, setGenerateCaptionFromUpload] = useState(true);
   const [pdfPage, setPdfPage] = useState(1);
   const [isLiveContentOpen, setIsLiveContentOpen] = useState(false);
   const [isSupportExpanded, setIsSupportExpanded] = useState(false);
+  const [lessonTypeFilter, setLessonTypeFilter] = useState<LessonTypeFilter>("all");
+  const isCaptionableUpload = Boolean(
+    editContentFile &&
+    (["video/mp4", "video/webm"].includes(editContentFile.type) ||
+      /\.(mp4|webm)$/i.test(editContentFile.name)),
+  );
   const editContentInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: moduleData } = useModuleDetails(moduleId);
@@ -38,7 +55,14 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
 
   const sortedLessons = useMemo(
     () => [...lessons].sort((first, second) => first.order - second.order),
-    [lessons]
+    [lessons],
+  );
+  const filteredLessons = useMemo(
+    () =>
+      lessonTypeFilter === "all"
+        ? sortedLessons
+        : sortedLessons.filter((lesson) => lesson.lesson_type === lessonTypeFilter),
+    [lessonTypeFilter, sortedLessons],
   );
 
   useEffect(() => {
@@ -47,6 +71,7 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
     setEditExerciseId(lessonDetails.exercise?.id ?? "");
     setEditContentFile(null);
     setEditContentPreview(null);
+    setGenerateCaptionFromUpload(true);
   }, [lessonDetails]);
 
   useEffect(() => {
@@ -66,8 +91,7 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
     setIsSupportExpanded(false);
   }, [lessonId]);
 
-  const lessonTypeLabel =
-    lessonDetails?.lesson_type === "asynchronous" ? "Assincrono" : "Ao vivo";
+  const lessonTypeLabel = lessonDetails?.lesson_type === "asynchronous" ? "Assincrono" : "Ao vivo";
 
   const isLiveLesson = lessonDetails?.lesson_type === "live";
   const isAsyncLesson = lessonDetails?.lesson_type === "asynchronous";
@@ -78,12 +102,10 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
     if (editLessonName.trim()) {
       formData.append("name", editLessonName.trim());
     }
-    formData.append(
-      "exercise",
-      editExerciseId === "" ? "null" : String(editExerciseId)
-    );
+    formData.append("exercise", editExerciseId === "" ? "null" : String(editExerciseId));
     if (editContentFile) {
       formData.append("content", editContentFile);
+      formData.append("generate_caption", String(isCaptionableUpload && generateCaptionFromUpload));
     }
 
     try {
@@ -96,50 +118,41 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
 
   return (
     <section className="space-y-6 px-1 sm:px-1">
-      <div className="flex flex-col gap-3">
-        <Link
-          href={`/courses/modules/${moduleId}`}
-          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar para modulo
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">
-              {moduleData?.name ?? "Modulo"}
-            </p>
-            <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
-              {lessonDetails?.name ?? "Detalhes da aula"}
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">
+            {moduleData?.name ?? "Modulo"}
+          </p>
+          <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
+            {lessonDetails?.name ?? "Detalhes da aula"}
+          </h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={isEditMode ? "ghost" : "default"}
+            onClick={() => setIsEditMode((current) => !current)}
+            className="gap-2"
+            disabled={!lessonDetails}
+          >
+            <Pencil className="h-4 w-4" />
+            {isEditMode ? "Cancelar edicao" : "Editar aula"}
+          </Button>
+          {isEditMode && (
             <Button
               type="button"
-              variant={isEditMode ? "ghost" : "default"}
-              onClick={() => setIsEditMode((current) => !current)}
+              onClick={handleSaveChanges}
+              disabled={updateLesson.isPending || !lessonDetails}
               className="gap-2"
-              disabled={!lessonDetails}
             >
-              <Pencil className="h-4 w-4" />
-              {isEditMode ? "Cancelar edicao" : "Editar aula"}
+              <Save className="h-4 w-4" />
+              {updateLesson.isPending ? "Salvando..." : "Salvar alteracoes"}
             </Button>
-            {isEditMode && (
-              <Button
-                type="button"
-                onClick={handleSaveChanges}
-                disabled={updateLesson.isPending || !lessonDetails}
-                className="gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {updateLesson.isPending ? "Salvando..." : "Salvar alteracoes"}
-              </Button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_320px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">
           <fieldset className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
             <legend className="sr-only">Conteudo da aula</legend>
@@ -149,33 +162,29 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
                   {lessonDetails ? lessonTypeLabel : "-"}
                 </span>
                 {lessonDetails && (
-                  <span className="text-xs text-muted-foreground">
-                    Ordem {lessonDetails.order}
-                  </span>
+                  <span className="text-xs text-muted-foreground">Ordem {lessonDetails.order}</span>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Nome da aula
-                </p>
-                {isEditMode ? (
+              {isEditMode && (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="lesson-name"
+                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    Nome da aula
+                  </label>
                   <Input
+                    id="lesson-name"
                     value={editLessonName}
                     onChange={(event) => setEditLessonName(event.target.value)}
                     className="h-11 rounded-2xl"
                     placeholder="Nome da aula"
                   />
-                ) : (
-                  <p className="text-lg font-semibold text-foreground">
-                    {lessonDetails?.name ?? "-"}
-                  </p>
-                )}
-              </div>
-
-              {isLoading && (
-                <div className="h-72 animate-pulse rounded-2xl bg-muted" />
+                </div>
               )}
+
+              {isLoading && <div className="h-72 animate-pulse rounded-2xl bg-muted" />}
 
               {!isLoading && isLiveLesson && (
                 <div className="space-y-4">
@@ -193,15 +202,15 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
                     </span>
                   </button>
                   {isLiveContentOpen && (
-                    <div className="relative mx-auto w-full max-w-4xl">
+                    <div className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-slate-950">
                       {editContentPreview || lessonDetails?.content ? (
-                        <video
-                          src={editContentPreview ?? lessonDetails?.content ?? undefined}
-                          className="h-72 w-full rounded-2xl border border-border object-cover"
-                          controls
+                        <LessonVideoPlayer
+                          lessonId={lessonId}
+                          src={editContentPreview ?? lessonDetails?.content ?? ""}
+                          showCaptionControls={!editContentPreview}
                         />
                       ) : (
-                        <div className="flex h-72 w-full items-center justify-center rounded-2xl border border-border bg-muted text-sm text-muted-foreground">
+                        <div className="flex aspect-video w-full items-center justify-center bg-muted text-sm text-muted-foreground">
                           Conteudo nao informado
                         </div>
                       )}
@@ -274,15 +283,15 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
 
               {!isLoading && isAsyncLesson && (
                 <div className="space-y-4">
-                  <div className="relative">
+                  <div className="relative overflow-hidden rounded-2xl border border-border bg-slate-950">
                     {editContentPreview || lessonDetails?.content ? (
-                      <video
-                        src={editContentPreview ?? lessonDetails?.content ?? undefined}
-                        className="h-72 w-full rounded-2xl border border-border object-cover"
-                        controls
+                      <LessonVideoPlayer
+                        lessonId={lessonId}
+                        src={editContentPreview ?? lessonDetails?.content ?? ""}
+                        showCaptionControls={!editContentPreview}
                       />
                     ) : (
-                      <div className="flex h-72 w-full items-center justify-center rounded-2xl border border-border bg-muted text-sm text-muted-foreground">
+                      <div className="flex aspect-video w-full items-center justify-center bg-muted text-sm text-muted-foreground">
                         Conteudo nao informado
                       </div>
                     )}
@@ -299,9 +308,7 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
                         <input
                           ref={editContentInputRef}
                           type="file"
-                          onChange={(event) =>
-                            setEditContentFile(event.target.files?.[0] ?? null)
-                          }
+                          onChange={(event) => setEditContentFile(event.target.files?.[0] ?? null)}
                           className="sr-only"
                         />
                       </>
@@ -328,8 +335,39 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
                   </div>
                 </div>
               )}
+
+              {isEditMode && isCaptionableUpload && (
+                <label className="flex items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                  <span>
+                    <span className="block font-semibold">Gerar legenda automaticamente</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      O texto ficará disponível para revisão após o upload.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setGenerateCaptionFromUpload((current) => !current)}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                      generateCaptionFromUpload ? "bg-primary" : "bg-muted"
+                    }`}
+                    aria-pressed={generateCaptionFromUpload}
+                    aria-label="Gerar legenda automaticamente"
+                  >
+                    <span
+                      className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-background shadow transition-transform ${
+                        generateCaptionFromUpload ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </label>
+              )}
             </div>
           </fieldset>
+
+          <LessonCaptionEditor
+            lessonId={lessonId}
+            hasVideo={Boolean(editContentFile || lessonDetails?.content)}
+          />
 
           <fieldset className="rounded-3xl border border-border bg-card px-6 py-5 shadow-sm">
             <legend className="sr-only">Detalhes adicionais</legend>
@@ -387,7 +425,7 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
           </fieldset>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-3xl border border-border bg-card px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -400,11 +438,36 @@ export function LessonDetailsPage({ moduleId, lessonId }: LessonDetailsPageProps
                 <span className="text-xs font-medium text-primary">Atualizando...</span>
               )}
             </div>
+            <div
+              className="mt-4 flex flex-wrap justify-end gap-1 rounded-lg bg-muted/70 p-1"
+              aria-label="Filtrar aulas por tipo"
+            >
+              {LESSON_FILTERS.map((filter) => {
+                const isSelected = lessonTypeFilter === filter.value;
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() => setLessonTypeFilter(filter.value)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      isSelected
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
             <div className="mt-4 space-y-3">
-              {sortedLessons.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhuma aula encontrada.</p>
+              {filteredLessons.length === 0 && (
+                <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                  Nenhuma aula encontrada neste filtro.
+                </p>
               )}
-              {sortedLessons.map((lesson) => (
+              {filteredLessons.map((lesson) => (
                 <LessonSidebarItem
                   key={lesson.id}
                   moduleId={moduleId}
@@ -461,28 +524,33 @@ function LessonSidebarItem({
           : "border-border bg-background hover:bg-accent/60"
       }`}
     >
-      <div
-        className="relative h-16 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-muted"
-        onMouseEnter={startPreview}
-        onMouseLeave={stopPreview}
-        onTouchStart={startPreview}
-        onTouchEnd={stopPreview}
-      >
-        {lesson.content ? (
-          <video
-            ref={previewRef}
-            src={lesson.content}
-            className="h-full w-full object-cover"
-            muted
-            playsInline
-            preload="metadata"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
-            Sem video
-          </div>
-        )}
-      </div>
+      {isAsync && (
+        <div
+          className="relative aspect-video w-24 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-slate-950"
+          onMouseEnter={startPreview}
+          onMouseLeave={stopPreview}
+          onTouchStart={startPreview}
+          onTouchEnd={stopPreview}
+        >
+          {lesson.content ? (
+            <video
+              ref={previewRef}
+              src={lesson.content}
+              className="h-full w-full bg-slate-950 object-contain"
+              muted
+              playsInline
+              preload="metadata"
+              onLoadedMetadata={(event) => {
+                event.currentTarget.currentTime = Math.min(0.1, event.currentTarget.duration);
+              }}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-muted px-2 text-center text-[10px] text-muted-foreground">
+              Sem vídeo
+            </div>
+          )}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-foreground">{lesson.name}</p>
         <p className="text-xs text-muted-foreground">Ordem {lesson.order}</p>

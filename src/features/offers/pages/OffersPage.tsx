@@ -2,10 +2,11 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeDollarSign, ChevronLeft, ChevronRight, Layers3, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { useOffersList } from "@/features/offers/queries/offersQueries";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { DataSurface, PageHeader, PageStat, PageToolbar } from "@/shared/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -33,7 +34,7 @@ function formatCurrency(value?: string | number | null) {
 }
 
 function getCampaignLabel(
-  campaign: { id: number; name: string } | null | number | string | undefined
+  campaign: { id: number; name: string } | null | number | string | undefined,
 ) {
   if (!campaign) return "Sem campanha";
   if (typeof campaign === "object" && "name" in campaign) return campaign.name;
@@ -62,7 +63,7 @@ export function OffersPage() {
 
   const pageLabel = useMemo(() => {
     const safePage = Math.min(page, totalPages);
-    return `Pagina ${safePage} de ${totalPages}`;
+    return `Página ${safePage} de ${totalPages}`;
   }, [page, totalPages]);
 
   function handlePageSizeChange(nextSize: number) {
@@ -82,39 +83,13 @@ export function OffersPage() {
 
   return (
     <section className="space-y-6">
-      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_34%),radial-gradient(circle_at_85%_15%,rgba(249,115,22,0.12),transparent_24%)]" />
-        <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
-              <BadgeDollarSign className="h-3.5 w-3.5" />
-              Financeiro
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Ofertas
-              </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Centralize pacotes comerciais, relacao com campanhas e estrutura de pagamento.
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        title="Ofertas"
+        description="Centralize pacotes comerciais, relações com campanhas e estruturas de pagamento."
+        actions={<PageStat label="Total" value={totalCount} />}
+      />
 
-          <div className="rounded-[1.75rem] border border-orange-500/20 bg-orange-500/10 px-5 py-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-700">
-                <Layers3 className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Total</p>
-                <p className="text-2xl font-semibold text-foreground">{totalCount}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
+      <PageToolbar className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -124,18 +99,18 @@ export function OffersPage() {
               setPage(1);
             }}
             placeholder="Buscar oferta por nome"
-            className="h-11 rounded-2xl border-border bg-card pl-9 shadow-sm"
+            className="h-11 bg-background pl-9"
             aria-label="Buscar ofertas"
           />
         </div>
 
-        <label className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-          <span className="text-xs uppercase tracking-wide">Page size</span>
+        <label className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+          <span className="text-xs font-medium">Itens por página</span>
           <select
             value={pageSize}
             onChange={(event) => handlePageSizeChange(Number(event.target.value))}
             className="bg-transparent text-sm font-semibold text-foreground focus:outline-none"
-            aria-label="Selecionar tamanho da pagina"
+            aria-label="Selecionar itens por página"
           >
             {PAGE_SIZE_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -146,12 +121,12 @@ export function OffersPage() {
         </label>
 
         <Link href="/offers/new">
-          <Button type="button" className="h-11 rounded-2xl">
+          <Button type="button" className="h-11">
             <Plus className="h-4 w-4" />
             Criar oferta
           </Button>
         </Link>
-      </div>
+      </PageToolbar>
 
       <PaginationBar
         pageLabel={pageLabel}
@@ -162,18 +137,18 @@ export function OffersPage() {
         isFetching={isFetching}
       />
 
-      <div className="overflow-hidden rounded-[2rem] border border-border bg-card/95 shadow-sm">
-        <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)] gap-4 border-b border-border/80 bg-muted/20 px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:grid">
+      <DataSurface>
+        <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)] gap-4 border-b border-border/80 bg-muted/20 px-6 py-4 text-xs font-medium text-muted-foreground lg:grid">
           <span>Nome</span>
-          <span>Preco</span>
+          <span>Preço</span>
           <span>Campanha</span>
         </div>
 
         {isLoading && (
           <div className="space-y-3 px-6 py-6">
-            <div className="h-16 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-16 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-16 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-16 animate-pulse rounded-md bg-muted" />
+            <div className="h-16 animate-pulse rounded-md bg-muted" />
+            <div className="h-16 animate-pulse rounded-md bg-muted" />
           </div>
         )}
 
@@ -193,17 +168,17 @@ export function OffersPage() {
               <li key={offer.id} className="px-4 py-3 sm:px-6">
                 <Link
                   href={`/offers/${offer.id}`}
-                  className="grid cursor-pointer gap-3 rounded-[1.6rem] border border-transparent bg-background/60 px-4 py-4 transition-all hover:border-orange-500/20 hover:bg-orange-500/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)] lg:items-center"
+                  className="grid cursor-pointer gap-3 rounded-md border border-transparent bg-background/60 px-4 py-4 transition-colors hover:border-primary/20 hover:bg-primary/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)] lg:items-center"
                 >
                   <DataCell label="Nome" value={offer.name} strong />
-                  <DataCell label="Preco" value={formatCurrency(offer.price)} />
+                  <DataCell label="Preço" value={formatCurrency(offer.price)} />
                   <DataCell label="Campanha" value={getCampaignLabel(offer.campaign)} />
                 </Link>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </DataSurface>
 
       <PaginationBar
         pageLabel={pageLabel}
@@ -233,10 +208,10 @@ function PaginationBar({
   isFetching: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-border/80 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <span>{pageLabel}</span>
-        {isFetching && <span className="text-xs uppercase tracking-wide">Atualizando...</span>}
+        {isFetching && <span className="text-xs">Atualizando...</span>}
       </div>
 
       <div className="flex items-center gap-2">
@@ -246,20 +221,12 @@ function PaginationBar({
           size="sm"
           onClick={onPrevious}
           disabled={!canGoPrevious}
-          className="rounded-2xl"
         >
           <ChevronLeft className="h-4 w-4" />
           Anterior
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onNext}
-          disabled={!canGoNext}
-          className="rounded-2xl"
-        >
-          Proxima
+        <Button type="button" variant="outline" size="sm" onClick={onNext} disabled={!canGoNext}>
+          Próxima
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -278,9 +245,7 @@ function DataCell({
 }) {
   return (
     <div className="text-sm text-muted-foreground">
-      <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground lg:hidden">
-        {label}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground lg:hidden">{label}</span>
       <p className={strong ? "font-semibold text-foreground" : "text-foreground"}>{value}</p>
     </div>
   );

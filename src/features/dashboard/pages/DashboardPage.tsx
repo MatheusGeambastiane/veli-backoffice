@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { BadgeCheck, BookOpen, Check, CircleDollarSign, Copy, GraduationCap, Users, Video } from "lucide-react";
+import {
+  BadgeCheck,
+  BookOpen,
+  Check,
+  CircleDollarSign,
+  Copy,
+  GraduationCap,
+  Users,
+  Video,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Bar,
@@ -22,7 +31,10 @@ import { cn } from "@/shared/lib/utils";
 import type { DashboardClass, OrdersLast3Months } from "@/features/dashboard/types/dashboardTypes";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" });
-const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" });
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 const weekDayFormatter = new Intl.DateTimeFormat("pt-BR", { weekday: "short" });
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -30,7 +42,7 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 2,
 });
 const dashboardGreetings = [
-  "Ola, {user}",
+  "Olá, {user}",
   "Salut, {user}, ravi de te voir",
   "Hello, {user}, welcome back.",
   "Salut, {user}, bienvenue dans ton espace.",
@@ -40,7 +52,7 @@ const dashboardGreetings = [
 
 const lessonTypeLabel = {
   live: "Ao vivo",
-  asynchronous: "Assincrona",
+  asynchronous: "Assíncrona",
 };
 
 function formatDate(value?: string | null) {
@@ -126,7 +138,7 @@ export function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary();
   const { user } = useSessionUser();
   const displayName = useMemo(() => {
-    const rawName = user?.name?.trim() || "Usuario";
+    const rawName = user?.name?.trim() || "Usuário";
     return rawName.split(" ")[0] || rawName;
   }, [user?.name]);
   const [greetingIndex, setGreetingIndex] = useState(0);
@@ -135,7 +147,9 @@ export function DashboardPage() {
   const isManager = user?.role?.toLowerCase() === "manager";
 
   const totalStudentsByClass = useMemo(() => {
-    return data?.students_by_active_class?.reduce((total, item) => total + item.students_count, 0) ?? 0;
+    return (
+      data?.students_by_active_class?.reduce((total, item) => total + item.students_count, 0) ?? 0
+    );
   }, [data]);
 
   const nextClass = data?.next_class ?? null;
@@ -148,7 +162,7 @@ export function DashboardPage() {
   const recentOrders = data?.orders_last_3_months ?? [];
   const greetingText = useMemo(
     () => dashboardGreetings[greetingIndex].replace("{user}", displayName),
-    [displayName, greetingIndex]
+    [displayName, greetingIndex],
   );
   const weekReferenceDate = useMemo(() => {
     const firstEventDate = weekCalendar[0]?.scheduled_datetime
@@ -168,7 +182,7 @@ export function DashboardPage() {
         acc[key].push(event);
         return acc;
       },
-      {} as Record<string, DashboardClass[]>
+      {} as Record<string, DashboardClass[]>,
     );
   }, [weekCalendar]);
   const effectiveSelectedDayKey = useMemo(() => {
@@ -180,10 +194,10 @@ export function DashboardPage() {
     return visibleWeekDays[0] ? getDayKey(visibleWeekDays[0]) : null;
   }, [selectedWeekDayKey, visibleWeekDays]);
   const selectedDayEvents = effectiveSelectedDayKey
-    ? eventsByDay[effectiveSelectedDayKey] ?? []
+    ? (eventsByDay[effectiveSelectedDayKey] ?? [])
     : [];
   const selectedDayDate = effectiveSelectedDayKey
-    ? visibleWeekDays.find((date) => getDayKey(date) === effectiveSelectedDayKey) ?? null
+    ? (visibleWeekDays.find((date) => getDayKey(date) === effectiveSelectedDayKey) ?? null)
     : null;
 
   useEffect(() => {
@@ -192,10 +206,7 @@ export function DashboardPage() {
     let timeoutId: ReturnType<typeof setTimeout>;
 
     function tick() {
-      const nextText = greetingText.slice(
-        0,
-        deleting ? currentIndex - 1 : currentIndex + 1
-      );
+      const nextText = greetingText.slice(0, deleting ? currentIndex - 1 : currentIndex + 1);
       setTypedGreeting(nextText);
       currentIndex = nextText.length;
 
@@ -260,24 +271,23 @@ export function DashboardPage() {
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Dashboard
-          </p>
-          <h1 className="min-h-[3.5rem] text-2xl font-semibold tracking-tight text-foreground drop-shadow-[0_10px_28px_rgba(15,23,42,0.12)] sm:text-3xl">
+        <div className="space-y-1">
+          <h1 className="min-h-10 text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
             {typedGreeting}
             <span className="ml-1 inline-block h-7 w-[2px] animate-pulse bg-primary align-[-4px]" />
           </h1>
         </div>
-        <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-2 text-sm text-muted-foreground shadow-sm md:w-auto md:rounded-full">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-4 py-2 text-sm text-muted-foreground md:w-auto">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
             i
           </span>
           Atualizado em {formatDate(new Date().toISOString())}
         </div>
       </div>
 
-      <div className={cn("grid gap-4", isManager ? "xl:grid-cols-5" : "sm:grid-cols-2 xl:grid-cols-3")}>
+      <div
+        className={cn("grid gap-4", isManager ? "xl:grid-cols-5" : "sm:grid-cols-2 xl:grid-cols-3")}
+      >
         <MetricCard
           title="Alunos ativos"
           value={isLoading ? "..." : String(data?.total_active_students ?? 0)}
@@ -312,7 +322,7 @@ export function DashboardPage() {
                     : "-",
               }}
               detailB={{
-                label: "Ultimos 7 dias",
+                label: "Últimos 7 dias",
                 value:
                   typeof data?.total_billed_amount_last_7_days === "number"
                     ? formatCurrency(data.total_billed_amount_last_7_days)
@@ -334,7 +344,7 @@ export function DashboardPage() {
                 value: isLoading ? "..." : String(data?.total_orders_today ?? 0),
               }}
               detailB={{
-                label: "Ultimos 7 dias",
+                label: "Últimos 7 dias",
                 value: isLoading ? "..." : String(data?.total_orders_last_7_days ?? 0),
               }}
             />
@@ -344,17 +354,13 @@ export function DashboardPage() {
 
       {isError && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Nao foi possivel carregar os dados do dashboard. Tente novamente.
+          Não foi possível carregar os dados do dashboard. Tente novamente.
         </div>
       )}
 
       {isManager && (
         <div className="grid gap-6 xl:grid-cols-12">
-          <ChartPanel
-            title="Faturamento por oferta"
-            badge="Receita"
-            className="xl:col-span-4"
-          >
+          <ChartPanel title="Faturamento por oferta" badge="Receita" className="xl:col-span-4">
             <VerticalValueBarChart
               items={offerBilling}
               emptyLabel="Nenhuma oferta com faturamento registrada."
@@ -366,11 +372,7 @@ export function DashboardPage() {
             />
           </ChartPanel>
 
-          <ChartPanel
-            title="Faturamento por campanha"
-            badge="Marketing"
-            className="xl:col-span-4"
-          >
+          <ChartPanel title="Faturamento por campanha" badge="Marketing" className="xl:col-span-4">
             <DistributionChart
               items={campaignBilling}
               emptyLabel="Nenhuma campanha com faturamento registrada."
@@ -383,7 +385,7 @@ export function DashboardPage() {
           </ChartPanel>
 
           <ChartPanel
-            title="Ordens nos ultimos 3 meses"
+            title="Pedidos nos últimos 3 meses"
             badge="Pipeline"
             className="xl:col-span-4"
           >
@@ -394,13 +396,13 @@ export function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="grid gap-6 xl:col-span-8 xl:grid-cols-2">
-          <div className="rounded-3xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+          <div className="rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold text-foreground">Alunos por turma ativa</h2>
               </div>
               <span className="w-fit rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
-                Distribuicao
+                Distribuição
               </span>
             </div>
             <div className="mt-6">
@@ -412,7 +414,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+          <div className="rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold text-foreground">Turmas ativas</h2>
@@ -429,7 +431,7 @@ export function DashboardPage() {
         </div>
 
         <div className="space-y-6 xl:col-span-4">
-          <div className="rounded-3xl border border-border bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-5 text-white shadow-sm sm:p-6 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+          <div className="rounded-lg border border-slate-800 bg-slate-950 p-5 text-white sm:p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Próxima aula</h2>
               <span className="rounded-full bg-white/10 px-3 py-1 text-xs">
@@ -438,14 +440,14 @@ export function DashboardPage() {
             </div>
             <div className="mt-6 space-y-4">
               <div>
-                <p className="text-xs uppercase text-white/60">Aula</p>
+                <p className="text-xs font-medium text-white/60">Aula</p>
                 <div className="mt-1 flex items-start justify-between gap-3">
                   <p className="text-lg font-semibold">
                     {nextClass ? getClassLabel(nextClass) : "Nenhuma aula agendada"}
                   </p>
                   {nextClassroomLink && (
                     <a
-                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25 transition-transform hover:scale-[1.03] hover:bg-emerald-300"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
                       href={nextClassroomLink}
                       target="_blank"
                       rel="noreferrer"
@@ -460,18 +462,22 @@ export function DashboardPage() {
                   {nextClass ? lessonTypeLabel[nextClass.lesson.lesson_type] : "-"}
                 </p>
               </div>
-              <div className="rounded-2xl bg-white/5 p-4">
-                <p className="text-xs uppercase text-white/60">Data e horario</p>
-                <p className="text-sm font-medium">{nextClass ? formatDateTime(nextClass.scheduled_datetime) : "-"}</p>
-                <p className="mt-2 text-xs text-white/60">{nextClass?.class_notice ?? "Sem observacoes adicionais."}</p>
+              <div className="rounded-md bg-white/5 p-4">
+                <p className="text-xs font-medium text-white/60">Data e horário</p>
+                <p className="text-sm font-medium">
+                  {nextClass ? formatDateTime(nextClass.scheduled_datetime) : "-"}
+                </p>
+                <p className="mt-2 text-xs text-white/60">
+                  {nextClass?.class_notice ?? "Sem observações adicionais."}
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 {nextClassroomLink && (
-                  <div className="rounded-2xl bg-white/5 p-4">
-                    <p className="text-xs uppercase text-white/60">Link da sala</p>
+                  <div className="rounded-md bg-white/5 p-4">
+                    <p className="text-xs font-medium text-white/60">Link da sala</p>
                     <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
                       <a
-                        className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-300 underline-offset-4 hover:underline"
+                        className="min-w-0 flex-1 truncate text-sm font-medium text-blue-300 underline-offset-4 hover:underline"
                         href={nextClassroomLink}
                         target="_blank"
                         rel="noreferrer"
@@ -502,16 +508,16 @@ export function DashboardPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Ver gravacao
+                    Ver gravação
                   </a>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-border bg-card/90 p-5 shadow-sm sm:p-6">
+          <div className="rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-base font-semibold text-foreground">Calendario da semana</h3>
+              <h3 className="text-base font-semibold text-foreground">Calendário da semana</h3>
               <span className="w-fit rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
                 7 dias
               </span>
@@ -523,7 +529,10 @@ export function DashboardPage() {
               {weekCalendar.length > 0 && (
                 <div className="space-y-4">
                   <p className="text-sm font-semibold capitalize text-foreground">
-                    {formatMonthLabel(weekReferenceDate.getFullYear(), weekReferenceDate.getMonth())}
+                    {formatMonthLabel(
+                      weekReferenceDate.getFullYear(),
+                      weekReferenceDate.getMonth(),
+                    )}
                   </p>
 
                   <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold text-muted-foreground">
@@ -536,64 +545,64 @@ export function DashboardPage() {
 
                   <div className="grid grid-cols-7 gap-1">
                     {visibleWeekDays.map((date) => {
-                        const dayKey = getDayKey(date);
-                        const dayEvents = eventsByDay[dayKey] ?? [];
-                        const visibleEvents = dayEvents.slice(0, 2);
-                        const isToday = isSameDay(date, new Date());
-                        const isSelected = effectiveSelectedDayKey === dayKey;
+                      const dayKey = getDayKey(date);
+                      const dayEvents = eventsByDay[dayKey] ?? [];
+                      const visibleEvents = dayEvents.slice(0, 2);
+                      const isToday = isSameDay(date, new Date());
+                      const isSelected = effectiveSelectedDayKey === dayKey;
 
-                        return (
-                          <button
-                            key={dayKey}
-                            type="button"
-                            onClick={() => setSelectedWeekDayKey(dayKey)}
+                      return (
+                        <button
+                          key={dayKey}
+                          type="button"
+                          onClick={() => setSelectedWeekDayKey(dayKey)}
+                          className={cn(
+                            "flex min-h-[96px] flex-col gap-1 rounded-xl border border-border bg-background p-1.5 text-left transition-colors",
+                            isToday && "border-primary/40 bg-primary/[0.03]",
+                            isSelected && "border-primary bg-primary/[0.06] shadow-sm",
+                          )}
+                        >
+                          <span
                             className={cn(
-                              "flex min-h-[96px] flex-col gap-1 rounded-xl border border-border bg-background p-1.5 text-left transition-colors",
-                              isToday && "border-primary/40 bg-primary/[0.03]",
-                              isSelected && "border-primary bg-primary/[0.06] shadow-sm"
+                              "text-[11px] font-semibold text-muted-foreground",
+                              isToday && "text-primary",
+                              isSelected && "text-primary",
                             )}
                           >
-                            <span
-                              className={cn(
-                                "text-[11px] font-semibold text-muted-foreground",
-                                isToday && "text-primary",
-                                isSelected && "text-primary"
-                              )}
-                            >
-                              {date.getDate()}
-                            </span>
-                            <div className="flex flex-1 flex-col gap-0.5">
-                              {visibleEvents.map((event) => {
-                                const isLive = event.lesson.lesson_type === "live";
-                                return (
-                                  <div
-                                    key={event.id}
-                                    className={cn(
-                                      "truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold",
-                                      isLive
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-emerald-100 text-emerald-800"
-                                    )}
-                                    title={[
-                                      `${formatDateTime(event.scheduled_datetime)} - ${getClassLabel(event)}`,
-                                      getTeacherLabel(event),
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" - ")}
-                                  >
-                                    {getClassLabel(event)}
-                                  </div>
-                                );
-                              })}
-                              {dayEvents.length > 2 && (
-                                <div className="truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold text-primary">
-                                  +{dayEvents.length - 2} mais
+                            {date.getDate()}
+                          </span>
+                          <div className="flex flex-1 flex-col gap-0.5">
+                            {visibleEvents.map((event) => {
+                              const isLive = event.lesson.lesson_type === "live";
+                              return (
+                                <div
+                                  key={event.id}
+                                  className={cn(
+                                    "truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold",
+                                    isLive
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-emerald-100 text-emerald-800",
+                                  )}
+                                  title={[
+                                    `${formatDateTime(event.scheduled_datetime)} - ${getClassLabel(event)}`,
+                                    getTeacherLabel(event),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" - ")}
+                                >
+                                  {getClassLabel(event)}
                                 </div>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
+                              );
+                            })}
+                            {dayEvents.length > 2 && (
+                              <div className="truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                                +{dayEvents.length - 2} mais
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div className="rounded-2xl border border-border/70 bg-background p-3">
@@ -682,25 +691,17 @@ function MetricCard({
   icon: ReactNode;
 }) {
   const accentMap = {
-    sky: "from-sky-500/15 text-sky-600 bg-sky-500/15 dark:text-sky-300",
-    indigo: "from-indigo-500/15 text-indigo-600 bg-indigo-500/15 dark:text-indigo-300",
-    amber: "from-amber-500/15 text-amber-600 bg-amber-500/15 dark:text-amber-300",
+    sky: "bg-primary/10 text-primary",
+    indigo: "bg-info/10 text-info",
+    amber: "bg-warning/15 text-warning-foreground",
   } as const;
 
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br via-transparent to-transparent p-5 shadow-sm dark:border-white/5 sm:p-6",
-        accentMap[accent].split(" ")[0]
-      )}
-    >
+    <div className="rounded-lg border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <span
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-xl",
-            accentMap[accent].split(" ").slice(1).join(" ")
-          )}
+          className={cn("flex h-10 w-10 items-center justify-center rounded-md", accentMap[accent])}
         >
           {icon}
         </span>
@@ -729,48 +730,34 @@ function ManagerMetricCard({
 }) {
   const accentStyles = {
     emerald: {
-      shell: "from-emerald-500/18",
-      badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-      divider: "border-emerald-500/15",
+      badge: "bg-success/10 text-success",
     },
     rose: {
-      shell: "from-rose-500/18",
-      badge: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-      divider: "border-rose-500/15",
+      badge: "bg-primary/10 text-primary",
     },
   } as const;
 
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br via-transparent to-transparent p-5 shadow-sm dark:border-white/5 sm:p-6",
-        accentStyles[accent].shell
-      )}
-    >
+    <div className="rounded-lg border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <span
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-xl",
-            accentStyles[accent].badge
+            "flex h-10 w-10 items-center justify-center rounded-md",
+            accentStyles[accent].badge,
           )}
         >
           {icon ?? marker}
         </span>
       </div>
       <p className="mt-6 text-3xl font-semibold text-foreground">{value}</p>
-      <div
-        className={cn(
-          "mt-4 grid grid-cols-2 gap-3 rounded-2xl border bg-background/75 p-3",
-          accentStyles[accent].divider
-        )}
-      >
+      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{detailA.label}</p>
+          <p className="text-xs text-muted-foreground">{detailA.label}</p>
           <p className="mt-1 text-sm font-semibold text-foreground">{detailA.value}</p>
         </div>
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{detailB.label}</p>
+          <p className="text-xs text-muted-foreground">{detailB.label}</p>
           <p className="mt-1 text-sm font-semibold text-foreground">{detailB.value}</p>
         </div>
       </div>
@@ -790,7 +777,7 @@ function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("rounded-3xl border border-border bg-card/95 p-5 shadow-sm sm:p-6", className)}>
+    <div className={cn("rounded-lg border border-border/80 bg-card p-5 sm:p-6", className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
@@ -972,10 +959,7 @@ function OrdersBarChart({ items }: { items: OrdersLast3Months[] }) {
       <div className="h-56 w-full">
         {mounted && (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{ top: 26, right: 10, left: -18, bottom: 10 }}
-            >
+            <LineChart data={chartData} margin={{ top: 26, right: 10, left: -18, bottom: 10 }}>
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.35} />
               <XAxis
                 dataKey="shortMonth"
@@ -1105,10 +1089,7 @@ function ActiveClassesPieChart({
             className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background px-3 py-2"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: segment.color }}
-              />
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
               <span className="truncate text-sm font-medium text-foreground">
                 {segment.course_name}
               </span>
@@ -1145,7 +1126,10 @@ function ActiveClassesSummary({
     <div className="space-y-3">
       <div className="space-y-3 md:hidden">
         {items.map((item) => (
-          <div key={item.student_class_id} className="rounded-2xl border border-border/60 bg-background p-4">
+          <div
+            key={item.student_class_id}
+            className="rounded-2xl border border-border/60 bg-background p-4"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">{item.course_name}</p>

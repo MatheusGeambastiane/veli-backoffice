@@ -59,8 +59,14 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
   const [isWeekly, setIsWeekly] = useState(false);
   const [supportMaterial, setSupportMaterial] = useState<File | null>(null);
   const [contentFile, setContentFile] = useState<File | null>(null);
+  const [generateCaption, setGenerateCaption] = useState(true);
   const [contentPreview, setContentPreview] = useState<string | null>(null);
   const [supportPreview, setSupportPreview] = useState<string | null>(null);
+  const isCaptionableUpload = Boolean(
+    contentFile &&
+      (["video/mp4", "video/webm"].includes(contentFile.type) ||
+        /\.(mp4|webm)$/i.test(contentFile.name))
+  );
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [exerciseDifficulty, setExerciseDifficulty] = useState("");
   const [exerciseCategory, setExerciseCategory] = useState("");
@@ -136,6 +142,7 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
     setIsWeekly(false);
     setSupportMaterial(null);
     setContentFile(null);
+    setGenerateCaption(true);
     setContentPreview(null);
     setSupportPreview(null);
     setExerciseSearch("");
@@ -161,7 +168,10 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
     formData.append("is_weekly", String(isWeekly));
     formData.append("module", String(moduleId));
     if (supportMaterial) formData.append("support_material", supportMaterial);
-    if (contentFile) formData.append("content", contentFile);
+    if (contentFile) {
+      formData.append("content", contentFile);
+      formData.append("generate_caption", String(isCaptionableUpload && generateCaption));
+    }
 
     try {
       await createLesson.mutateAsync(formData);
@@ -451,6 +461,31 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
                           Arquivo selecionado: {contentFile?.name}
                         </p>
                       )}
+                      {isCaptionableUpload && (
+                        <label className="flex items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3 text-sm text-foreground">
+                          <span>
+                            <span className="block font-semibold">Gerar legenda automaticamente</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              A transcrição em português será criada após o upload.
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setGenerateCaption((current) => !current)}
+                            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                              generateCaption ? "bg-primary" : "bg-muted"
+                            }`}
+                            aria-pressed={generateCaption}
+                            aria-label="Gerar legenda automaticamente"
+                          >
+                            <span
+                              className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-background shadow transition-transform ${
+                                generateCaption ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </label>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -598,6 +633,10 @@ export function ModuleDetailsPage({ moduleId }: ModuleDetailsPageProps) {
                     <p>
                       <span className="font-semibold text-foreground">Conteudo:</span>{" "}
                       {contentFile?.name ?? "-"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-foreground">Legenda automática:</span>{" "}
+                      {isCaptionableUpload ? (generateCaption ? "Sim" : "Não") : "-"}
                     </p>
                     <p>
                       <span className="font-semibold text-foreground">Exercicio:</span>{" "}

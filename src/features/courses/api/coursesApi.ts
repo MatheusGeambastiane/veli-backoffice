@@ -9,6 +9,8 @@ import type {
   LanguageLevelsResponse,
   LessonDetails,
   Lesson,
+  LessonCaption,
+  LessonCaptionCue,
   ModuleListItem,
   ModuleDetails,
   ModulesResponse,
@@ -91,4 +93,18 @@ export const coursesApi = {
   createLesson: (payload: FormData) => httpClient.post<Lesson>("/dashboard/lessons/", payload),
   updateLesson: (id: string, payload: FormData) =>
     httpClient.patch<LessonDetails>(`/dashboard/lessons/${id}/`, payload),
+  getLessonCaption: (id: string) =>
+    httpClient.get<LessonCaption | null>(`/dashboard/lessons/${id}/caption/`),
+  generateLessonCaption: (id: string) =>
+    httpClient.post<LessonCaption>(`/dashboard/lessons/${id}/caption/generate/`),
+  updateLessonCaptionCues: (
+    id: string,
+    payload: {
+      cues: LessonCaptionCue[];
+      position_percent: number;
+      text_color: string;
+    },
+  ) => httpClient.patch<LessonCaption>(`/dashboard/lessons/${id}/caption/cues/`, payload),
+  publishLessonCaption: (id: string) =>
+    httpClient.post<LessonCaption>(`/dashboard/lessons/${id}/caption/publish/`),
 };
