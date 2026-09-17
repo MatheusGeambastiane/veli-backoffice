@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BadgeDollarSign,
+  BarChart3,
   BriefcaseBusiness,
   BookOpen,
   ChevronRight,
@@ -16,6 +17,7 @@ import {
   MoreHorizontal,
   Sparkles,
   ShoppingCart,
+  TicketPercent,
   Users,
   X,
   type LucideIcon,
@@ -29,6 +31,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: Home },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/assistant", label: "Assistente", icon: Sparkles },
   { href: "/users", label: "Usuários", icon: Users },
   { href: "/courses", label: "Cursos", icon: GraduationCap },
@@ -39,6 +42,7 @@ const financialItems: NavItem[] = [
   { href: "/billing", label: "Faturamento", icon: BadgeDollarSign },
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/offers", label: "Ofertas", icon: Layers3 },
+  { href: "/coupons", label: "Cupons", icon: TicketPercent },
   { href: "/orders", label: "Pedidos", icon: ShoppingCart },
 ];
 const mobilePrimaryItems = navItems.slice(0, 4);
