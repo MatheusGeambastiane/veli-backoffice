@@ -1,5 +1,9 @@
 import { httpClient } from "@/shared/lib/http/http";
-import type { OrderListParams, OrderListResponse } from "@/features/orders/types/order";
+import type {
+  OrderDetail,
+  OrderListParams,
+  OrderListResponse,
+} from "@/features/orders/types/order";
 
 export const ordersApi = {
   list: (params: OrderListParams) => {
@@ -41,4 +45,6 @@ export const ordersApi = {
     const path = query ? `/dashboard/orders/?${query}` : "/dashboard/orders/";
     return httpClient.get<OrderListResponse>(path);
   },
+  details: (id: string) => httpClient.get<OrderDetail>(`/dashboard/orders/${id}/`),
+  delete: (id: string) => httpClient.delete<void>(`/dashboard/orders/${id}/`),
 };

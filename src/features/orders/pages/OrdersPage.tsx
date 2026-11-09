@@ -1,8 +1,20 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Filter, Search } from "lucide-react";
-import { useOrdersList } from "@/features/orders/queries/ordersQueries";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Loader2,
+  MoreVertical,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useDeleteOrder, useOrdersList } from "@/features/orders/queries/ordersQueries";
 import type { OrderListItem, OrderPreferencePeriod } from "@/features/orders/types/order";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -98,16 +110,97 @@ function statusLabel(value: string) {
   return STATUS_LABELS[value] ?? value;
 }
 
+function billingOptionLabel(code?: string | null) {
+  if (!code) return "Sem opção de cobrança";
+
+  const paymentMethod = code.includes("CREDIT_CARD")
+    ? "Cartão de crédito"
+    : code.includes("PIX")
+      ? "Pix"
+      : null;
+  const cadence = code.startsWith("UPFRONT_")
+    ? "cobrança única"
+    : code.startsWith("MONTHLY_")
+      ? "mensal"
+      : code.startsWith("QUARTERLY_")
+        ? "trimestral"
+        : code.startsWith("SEMI_ANNUAL_")
+          ? "semestral"
+          : code.startsWith("ANNUAL_")
+            ? "anual"
+            : null;
+
+  if (paymentMethod && cadence) return `${paymentMethod} · ${cadence}`;
+  if (paymentMethod) return paymentMethod;
+  return code.replaceAll("_", " ").toLocaleLowerCase("pt-BR");
+}
+
+type OrdersListState = {
+  search: string;
+  status: string;
+  isGenericFilter: "" | "true" | "false";
+  dateFrom: string;
+  dateTo: string;
+  preferencePeriods: OrderPreferencePeriod[];
+  page: number;
+  pageSize: number;
+};
+
+function buildOrdersListPath(state: OrdersListState) {
+  const params = new URLSearchParams();
+  if (state.search) params.set("search", state.search);
+  if (state.status) params.set("status", state.status);
+  if (state.isGenericFilter) params.set("is_generic", state.isGenericFilter);
+  if (state.dateFrom) params.set("date_from", state.dateFrom);
+  if (state.dateTo) params.set("date_to", state.dateTo);
+  state.preferencePeriods.forEach((period) => params.append("preference_period", period));
+  if (state.page > 1) params.set("page", String(state.page));
+  if (state.pageSize !== 20) params.set("page_size", String(state.pageSize));
+  const query = params.toString();
+  return query ? `/orders?${query}` : "/orders";
+}
+
+function positiveInteger(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export function OrdersPage() {
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [isGenericFilter, setIsGenericFilter] = useState<"" | "true" | "false">("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [preferencePeriods, setPreferencePeriods] = useState<OrderPreferencePeriod[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(20);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialGeneric = searchParams.get("is_generic");
+  const initialPeriods = searchParams
+    .getAll("preference_period")
+    .filter((period): period is OrderPreferencePeriod =>
+      PERIOD_OPTIONS.some((option) => option.value === period),
+    );
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [isGenericFilter, setIsGenericFilter] = useState<"" | "true" | "false">(() =>
+    initialGeneric === "true" || initialGeneric === "false" ? initialGeneric : "",
+  );
+  const [dateFrom, setDateFrom] = useState(() => searchParams.get("date_from") ?? "");
+  const [dateTo, setDateTo] = useState(() => searchParams.get("date_to") ?? "");
+  const [preferencePeriods, setPreferencePeriods] = useState<OrderPreferencePeriod[]>(initialPeriods);
+  const [page, setPage] = useState(() => positiveInteger(searchParams.get("page"), 1));
+  const [pageSize, setPageSize] = useState<number>(() =>
+    positiveInteger(searchParams.get("page_size"), 20),
+  );
+  const [deleteTarget, setDeleteTarget] = useState<OrderListItem | null>(null);
+  const deleteOrder = useDeleteOrder();
   const deferredSearch = useDeferredValue(search.trim());
+
+  const listState: OrdersListState = {
+    search,
+    status,
+    isGenericFilter,
+    dateFrom,
+    dateTo,
+    preferencePeriods,
+    page,
+    pageSize,
+  };
+  const returnPath = buildOrdersListPath(listState);
 
   const { data, isLoading, isError, isFetching } = useOrdersList({
     search: deferredSearch || undefined,
@@ -133,16 +226,23 @@ export function OrdersPage() {
     return `Página ${safePage} de ${totalPages}`;
   }, [page, totalPages]);
 
+  function persistListState(overrides: Partial<OrdersListState>) {
+    router.replace(buildOrdersListPath({ ...listState, ...overrides }), { scroll: false });
+  }
+
   function handlePageSizeChange(nextSize: number) {
     setPageSize(nextSize);
     setPage(1);
+    persistListState({ pageSize: nextSize, page: 1 });
   }
 
   function togglePreferencePeriod(period: OrderPreferencePeriod) {
-    setPreferencePeriods((current) =>
-      current.includes(period) ? current.filter((item) => item !== period) : [...current, period],
-    );
+    const nextPeriods = preferencePeriods.includes(period)
+      ? preferencePeriods.filter((item) => item !== period)
+      : [...preferencePeriods, period];
+    setPreferencePeriods(nextPeriods);
     setPage(1);
+    persistListState({ preferencePeriods: nextPeriods, page: 1 });
   }
 
   function clearFilters() {
@@ -153,16 +253,36 @@ export function OrdersPage() {
     setDateTo("");
     setPreferencePeriods([]);
     setPage(1);
+    router.replace("/orders", { scroll: false });
   }
 
   function goToPreviousPage() {
     if (!canGoPrevious) return;
-    setPage((current) => Math.max(1, previousPageFromApi ?? current - 1));
+    const nextPage = Math.max(1, previousPageFromApi ?? page - 1);
+    setPage(nextPage);
+    persistListState({ page: nextPage });
   }
 
   function goToNextPage() {
     if (!canGoNext) return;
-    setPage((current) => Math.min(totalPages, nextPageFromApi ?? current + 1));
+    const nextPage = Math.min(totalPages, nextPageFromApi ?? page + 1);
+    setPage(nextPage);
+    persistListState({ page: nextPage });
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteOrder.mutateAsync(String(deleteTarget.id));
+      if (orders.length === 1 && page > 1) {
+        const previousPage = page - 1;
+        setPage(previousPage);
+        persistListState({ page: previousPage });
+      }
+      setDeleteTarget(null);
+    } catch {
+      // The mutation state renders the contextual error in the confirmation dialog.
+    }
   }
 
   return (
@@ -182,8 +302,10 @@ export function OrdersPage() {
               <Input
                 value={search}
                 onChange={(event) => {
-                  setSearch(event.target.value);
+                  const nextSearch = event.target.value;
+                  setSearch(nextSearch);
                   setPage(1);
+                  persistListState({ search: nextSearch, page: 1 });
                 }}
                 placeholder="Nome, email ou CPF"
                 className="h-11 pl-9"
@@ -197,8 +319,10 @@ export function OrdersPage() {
             <select
               value={status}
               onChange={(event) => {
-                setStatus(event.target.value);
+                const nextStatus = event.target.value;
+                setStatus(nextStatus);
                 setPage(1);
+                persistListState({ status: nextStatus, page: 1 });
               }}
               className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               aria-label="Filtrar por status"
@@ -216,8 +340,10 @@ export function OrdersPage() {
             <select
               value={isGenericFilter}
               onChange={(event) => {
-                setIsGenericFilter(event.target.value as "" | "true" | "false");
+                const nextGeneric = event.target.value as "" | "true" | "false";
+                setIsGenericFilter(nextGeneric);
                 setPage(1);
+                persistListState({ isGenericFilter: nextGeneric, page: 1 });
               }}
               className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
               aria-label="Filtrar por enturmação"
@@ -236,8 +362,10 @@ export function OrdersPage() {
               type="date"
               value={dateFrom}
               onChange={(event) => {
-                setDateFrom(event.target.value);
+                const nextDate = event.target.value;
+                setDateFrom(nextDate);
                 setPage(1);
+                persistListState({ dateFrom: nextDate, page: 1 });
               }}
               className="h-11"
               aria-label="Filtrar data inicial"
@@ -250,8 +378,10 @@ export function OrdersPage() {
               type="date"
               value={dateTo}
               onChange={(event) => {
-                setDateTo(event.target.value);
+                const nextDate = event.target.value;
+                setDateTo(nextDate);
                 setPage(1);
+                persistListState({ dateTo: nextDate, page: 1 });
               }}
               className="h-11"
               aria-label="Filtrar data final"
@@ -315,13 +445,14 @@ export function OrdersPage() {
         </label>
       </div>
 
-      <DataSurface>
-        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] gap-4 border-b border-border/80 bg-muted/20 px-6 py-4 text-xs font-medium text-muted-foreground xl:grid">
+      <DataSurface className="overflow-visible">
+        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_48px] gap-4 border-b border-border/80 bg-muted/20 px-6 py-4 text-xs font-medium text-muted-foreground xl:grid">
           <span>Aluno</span>
           <span>Status</span>
           <span>Turma</span>
           <span>Valor</span>
           <span>Criado em</span>
+          <span className="text-center">Ações</span>
         </div>
 
         {isLoading && (
@@ -345,7 +476,15 @@ export function OrdersPage() {
         {!isLoading && !isError && orders.length > 0 && (
           <ul className="divide-y divide-border/80">
             {orders.map((order) => (
-              <OrderRow key={order.id} order={order} />
+              <OrderRow
+                key={order.id}
+                order={order}
+                returnPath={returnPath}
+                onDelete={() => {
+                  deleteOrder.reset();
+                  setDeleteTarget(order);
+                }}
+              />
             ))}
           </ul>
         )}
@@ -359,15 +498,44 @@ export function OrdersPage() {
         onNext={goToNextPage}
         isFetching={isFetching}
       />
+
+      {deleteTarget && (
+        <DeleteOrderDialog
+          order={deleteTarget}
+          isPending={deleteOrder.isPending}
+          isError={deleteOrder.isError}
+          onClose={() => {
+            if (!deleteOrder.isPending) {
+              deleteOrder.reset();
+              setDeleteTarget(null);
+            }
+          }}
+          onConfirm={handleDelete}
+        />
+      )}
     </section>
   );
 }
 
-function OrderRow({ order }: { order: OrderListItem }) {
+function OrderRow({
+  order,
+  returnPath,
+  onDelete,
+}: {
+  order: OrderListItem;
+  returnPath: string;
+  onDelete: () => void;
+}) {
   const classPreference = order.class_preference;
+  const detailsHref = `/orders/${order.id}?returnTo=${encodeURIComponent(returnPath)}`;
 
   return (
-    <li className="grid gap-4 px-4 py-4 sm:px-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] xl:items-center">
+    <li className="relative grid gap-4 px-4 py-4 transition-colors hover:bg-muted/30 sm:px-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_48px] xl:items-center">
+      <Link
+        href={detailsHref}
+        className="absolute inset-0 z-10"
+        aria-label={`Ver detalhes do pedido ${order.id}`}
+      />
       <div className="min-w-0">
         <p className="text-xs font-medium text-muted-foreground xl:hidden">Aluno</p>
         <p className="truncate text-sm font-semibold text-foreground">{order.user.full_name}</p>
@@ -383,14 +551,14 @@ function OrderRow({ order }: { order: OrderListItem }) {
             order.status === "active"
               ? "bg-success/10 text-success"
               : order.status === "waiting_payment"
-                ? "bg-warning/15 text-warning-foreground"
+                ? "bg-[#fad711] text-black"
                 : "bg-muted text-muted-foreground",
           )}
         >
           {statusLabel(order.status)}
         </span>
         <p className="mt-2 text-xs text-muted-foreground">
-          {order.billing_option?.name ?? "Sem opção de cobrança"}
+          {billingOptionLabel(order.billing_option?.name)}
         </p>
       </div>
 
@@ -422,6 +590,30 @@ function OrderRow({ order }: { order: OrderListItem }) {
 
       <DataCell label="Valor" value={formatCurrency(order.offer_price)} />
       <DataCell label="Criado em" value={formatDateTime(order.created_at)} />
+
+      <div className="relative z-20 flex justify-end xl:justify-center">
+        <details className="group relative">
+          <summary
+            className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-background hover:text-foreground [&::-webkit-details-marker]:hidden"
+            aria-label={`Ações do pedido ${order.id}`}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </summary>
+          <div className="absolute bottom-full right-0 z-30 mb-2 w-44 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl xl:bottom-auto xl:top-full xl:mb-0 xl:mt-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.currentTarget.closest("details")?.removeAttribute("open");
+                onDelete();
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir pedido
+            </button>
+          </div>
+        </details>
+      </div>
     </li>
   );
 }
@@ -473,6 +665,85 @@ function PaginationBar({
           Próxima
           <ChevronRight className="h-4 w-4" />
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function DeleteOrderDialog({
+  order,
+  isPending,
+  isError,
+  onClose,
+  onConfirm,
+}: {
+  order: OrderListItem;
+  isPending: boolean;
+  isError: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 py-10 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-list-order-title"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-[2rem] border border-border bg-card shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-destructive">
+              Ação permanente
+            </p>
+            <h2 id="delete-list-order-title" className="mt-1 text-xl font-semibold text-foreground">
+              Excluir pedido #{order.id}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Fechar confirmação"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          <p className="text-sm leading-6 text-muted-foreground">
+            Você está excluindo o pedido de {" "}
+            <strong className="text-foreground">{order.user.full_name}</strong>. Esta ação não
+            pode ser desfeita.
+          </p>
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+            Os vínculos dependentes do pedido também podem ser removidos.
+          </div>
+          {isError && (
+            <div className="rounded-2xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              Não foi possível excluir o pedido. Tente novamente.
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-border px-6 py-5 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={isPending}>
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            {isPending ? "Excluindo..." : "Excluir definitivamente"}
+          </Button>
+        </div>
       </div>
     </div>
   );
