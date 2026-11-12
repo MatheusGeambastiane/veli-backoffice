@@ -20,7 +20,7 @@ import { Button } from "@/shared/components/ui/button";
 import { usePlacementLead, useUpdatePlacementLead } from "@/features/analytics/queries/analyticsQueries";
 import type { PlacementLeadDetail } from "@/features/analytics/types/placementLeads";
 
-const skillLabels = { grammar: "Gramática", vocabulary: "Vocabulário", reading: "Compreensão" };
+const skillLabels = { grammar: "Gramática", vocabulary: "Vocabulário", reading: "Compreensão", listening: "Compreensão auditiva" };
 
 function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleString("pt-BR") : "Não concluído";

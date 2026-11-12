@@ -29,7 +29,7 @@ export type PlacementAnswer = {
   id: number;
   question: string;
   context: string;
-  skill: "grammar" | "vocabulary" | "reading";
+  skill: "grammar" | "vocabulary" | "reading" | "listening";
   question_level: string;
   selected_option: string;
   correct_option: string;
@@ -101,10 +101,15 @@ export type PlacementQuestion = {
   language: number;
   language_name: string;
   level: string;
-  skill: "grammar" | "vocabulary" | "reading";
+  skill: "grammar" | "vocabulary" | "reading" | "listening";
   prompt: string;
   context: string;
   explanation: string;
+  audio_url: string;
+  audio_source_url: string;
+  audio_credit: string;
+  audio_license: string;
+  audio_transcript: string;
   order: number;
   is_active: boolean;
   options: PlacementOption[];

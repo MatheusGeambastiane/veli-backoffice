@@ -44,11 +44,11 @@ export function useUpdatePlacementLead() {
   });
 }
 
-export function usePlacementQuestions() {
+export function usePlacementQuestions(filters: Parameters<typeof analyticsApi.placementQuestions>[0] = {}) {
   const { status } = useSession();
   return useQuery({
-    queryKey: ["placement-questions"],
-    queryFn: analyticsApi.placementQuestions,
+    queryKey: ["placement-questions", filters],
+    queryFn: () => analyticsApi.placementQuestions(filters),
     enabled: status === "authenticated",
   });
 }
