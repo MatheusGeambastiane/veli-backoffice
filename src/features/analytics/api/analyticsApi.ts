@@ -2,6 +2,8 @@ import { httpClient } from "@/shared/lib/http/http";
 import type { AnalyticsPeriod, AnalyticsResponse, AnalyticsSource } from "@/features/analytics/types/analytics";
 import type {
   DashboardLanguage,
+  LeadStage,
+  LeadSummary,
   Paginated,
   PlacementLeadDetail,
   PlacementLeadSummary,
@@ -24,13 +26,14 @@ function questionBody(payload: PlacementQuestionPayload) {
 export const analyticsApi = {
   summary: (source: AnalyticsSource, period: AnalyticsPeriod) =>
     httpClient.get<AnalyticsResponse>(`/dashboard/analytics/?source=${source}&period=${period}`),
-  placementLeads: (page: number, search: string) =>
+  placementLeads: (page: number, search: string, stage?: LeadStage) =>
     httpClient.get<Paginated<PlacementLeadSummary>>(
-      `/dashboard/placement-leads/?page=${page}&search=${encodeURIComponent(search)}`,
+      `/dashboard/placement-leads/?page=${page}&search=${encodeURIComponent(search)}${stage ? `&stage=${stage}` : ""}`,
     ),
+  leadSummary: (search: string) => httpClient.get<LeadSummary>(`/dashboard/placement-leads/summary/?search=${encodeURIComponent(search)}`),
   placementLead: (id: number) =>
     httpClient.get<PlacementLeadDetail>(`/dashboard/placement-leads/${id}/`),
-  updatePlacementLead: (id: number, payload: { is_contacted: boolean; observation: string }) =>
+  updatePlacementLead: (id: number, payload: { is_contacted?: boolean; observation?: string; stage?: LeadStage }) =>
     httpClient.patch<PlacementLeadDetail>(`/dashboard/placement-leads/${id}/`, payload),
   placementQuestions: (filters: { language?: string; level?: string; skill?: string; page?: number } = {}) => {
     const params = new URLSearchParams({ page_size: "20", page: String(filters.page ?? 1) });

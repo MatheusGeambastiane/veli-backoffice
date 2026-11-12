@@ -1,3 +1,12 @@
+export const leadStages = [
+  { value: "not_contacted", label: "Não contatado", color: "border-t-slate-400" },
+  { value: "discarded", label: "Descartado", color: "border-t-rose-400" },
+  { value: "in_contact", label: "Em contato", color: "border-t-blue-500" },
+  { value: "hired", label: "Contratado", color: "border-t-emerald-500" },
+] as const;
+export type LeadStage = typeof leadStages[number]["value"];
+export type LeadSummary = { total: number; stages: Record<LeadStage, number>; success_rate: number };
+
 export type Paginated<T> = {
   count: number;
   next: string | null;
@@ -19,6 +28,7 @@ export type PlacementLeadSummary = {
   started_at: string;
   has_purchased: boolean;
   is_contacted: boolean;
+  stage: LeadStage;
   contacted_at: string | null;
   observation: string;
   tests_count: number;

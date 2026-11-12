@@ -20,6 +20,8 @@ import { Button } from "@/shared/components/ui/button";
 import { usePlacementLead, useUpdatePlacementLead } from "@/features/analytics/queries/analyticsQueries";
 import type { PlacementLeadDetail } from "@/features/analytics/types/placementLeads";
 
+import { leadStages, type LeadStage } from "@/features/analytics/types/placementLeads";
+
 const skillLabels = { grammar: "Gramática", vocabulary: "Vocabulário", reading: "Compreensão", listening: "Compreensão auditiva" };
 
 function formatDate(value: string | null) {
@@ -27,7 +29,7 @@ function formatDate(value: string | null) {
 }
 
 function LeadDetailContent({ lead, onClose }: { lead: PlacementLeadDetail; onClose: () => void }) {
-  const [isContacted, setIsContacted] = useState(lead.is_contacted);
+  const [stage, setStage] = useState<LeadStage>(lead.stage);
   const [observation, setObservation] = useState(lead.observation);
   const [copied, setCopied] = useState(false);
   const updateLead = useUpdatePlacementLead();
@@ -70,16 +72,18 @@ function LeadDetailContent({ lead, onClose }: { lead: PlacementLeadDetail; onClo
 
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3"><MessageCircleMore className="size-5 text-primary" /><div><h3 className="font-semibold">Acompanhamento comercial</h3><p className="text-xs text-muted-foreground">O status vale para todas as tentativas deste contato.</p></div></div>
-          <label className="mt-5 flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium">
-            <input type="checkbox" checked={isContacted} onChange={(event) => setIsContacted(event.target.checked)} className="size-4 accent-primary" />
-            Este lead já foi contatado
+          <label className="mt-5 block text-sm font-medium">Etapa comercial
+            <select value={stage} onChange={(event) => setStage(event.target.value as LeadStage)} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3">
+              {leadStages.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
           </label>
           <label className="mt-4 block text-sm font-medium">Observação
             <textarea value={observation} onChange={(event) => setObservation(event.target.value)} rows={4} maxLength={5000} placeholder="Registre o retorno, interesse e próximo passo..." className="mt-2 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
           </label>
           <div className="mt-4 flex items-center justify-end gap-3">
+            {updateLead.isError ? <span role="alert" className="text-xs text-destructive">Não foi possível salvar. Tente novamente.</span> : null}
             {updateLead.isSuccess ? <span className="text-xs text-emerald-700">Alterações salvas</span> : null}
-            <Button disabled={updateLead.isPending} onClick={() => updateLead.mutate({ id: lead.id, is_contacted: isContacted, observation })}>
+            <Button disabled={updateLead.isPending} onClick={() => updateLead.mutate({ id: lead.id, stage, observation })}>
               {updateLead.isPending ? <Loader2 className="size-4 animate-spin" /> : <UserRoundCheck className="size-4" />} Salvar acompanhamento
             </Button>
           </div>
@@ -146,7 +150,7 @@ export function PlacementLeadDrawer({ leadId, onClose }: { leadId: number; onClo
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Detalhes do lead">
       <button type="button" className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]" onClick={onClose} aria-label="Fechar detalhes" />
       <aside className="absolute inset-y-0 right-0 w-full max-w-4xl shadow-2xl">
-        {isLoading ? <div className="flex h-full items-center justify-center bg-background"><Loader2 className="size-7 animate-spin text-primary" /></div> : error || !data ? <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center"><XCircle className="size-9 text-destructive" /><p>Não foi possível carregar este lead.</p><Button onClick={onClose}>Fechar</Button></div> : <LeadDetailContent key={`${data.id}-${data.contacted_at}-${data.observation}`} lead={data} onClose={onClose} />}
+        {isLoading ? <div className="flex h-full items-center justify-center bg-background"><Loader2 className="size-7 animate-spin text-primary" /></div> : error || !data ? <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center"><XCircle className="size-9 text-destructive" /><p>Não foi possível carregar este lead.</p><Button onClick={onClose}>Fechar</Button></div> : <LeadDetailContent key={`${data.id}-${data.stage}-${data.contacted_at}-${data.observation}`} lead={data} onClose={onClose} />}
       </aside>
     </div>
   );

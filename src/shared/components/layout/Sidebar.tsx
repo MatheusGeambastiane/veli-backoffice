@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   TicketPercent,
   Users,
+  UserRoundSearch,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +33,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/analytics/leads", label: "Leads", icon: UserRoundSearch },
   { href: "/assistant", label: "Assistente", icon: Sparkles },
   { href: "/users", label: "Usuários", icon: Users },
   { href: "/courses", label: "Cursos", icon: GraduationCap },
@@ -88,7 +90,7 @@ export function Sidebar() {
         <nav className="flex flex-1 flex-col gap-2">
           {navItems.map((item) => {
             const isActive =
-              item.href === "/" ? pathname === item.href : pathname.startsWith(item.href);
+              item.href === "/" ? pathname === item.href : (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
             const Icon = item.icon;
 
             return (
@@ -133,7 +135,7 @@ export function Sidebar() {
             </div>
 
             {financialItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
+              const isActive = (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
               const Icon = item.icon;
 
               return (
@@ -185,7 +187,7 @@ export function Sidebar() {
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   {mobileMoreItems.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
+                    const isActive = (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
                     const Icon = item.icon;
                     return (
                       <Link
@@ -213,7 +215,7 @@ export function Sidebar() {
             <div className="grid w-full max-w-[560px] grid-cols-5 items-center rounded-xl border border-border/70 bg-card/95 p-2 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur-xl">
               {mobilePrimaryItems.map((item) => {
                 const isActive =
-                  item.href === "/" ? pathname === item.href : pathname.startsWith(item.href);
+                  item.href === "/" ? pathname === item.href : (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
                 const Icon = item.icon;
 
                 return (
@@ -257,7 +259,7 @@ export function Sidebar() {
                 onClick={() => setIsMobileMoreOpen((current) => !current)}
                 className={[
                   "flex min-w-0 flex-col items-center gap-1 px-1 py-1 text-[10px] font-medium transition-colors",
-                  isMobileMoreOpen || mobileMoreItems.some((item) => pathname.startsWith(item.href))
+                  isMobileMoreOpen || mobileMoreItems.some((item) => (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"))))
                     ? "text-foreground"
                     : "text-muted-foreground",
                 ].join(" ")}
@@ -268,7 +270,7 @@ export function Sidebar() {
                   className={[
                     "flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
                     isMobileMoreOpen ||
-                    mobileMoreItems.some((item) => pathname.startsWith(item.href))
+                    mobileMoreItems.some((item) => (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"))))
                       ? "border-primary/20 bg-primary/10 text-primary"
                       : "border-transparent bg-muted text-muted-foreground",
                   ].join(" ")}
