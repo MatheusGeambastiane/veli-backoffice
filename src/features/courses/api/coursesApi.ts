@@ -1,5 +1,7 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type {
+  AddCourseModulePayload,
+  CourseModule,
   CreateCoursePayload,
   CreateModulePayload,
   CourseDetails,
@@ -21,8 +23,29 @@ import type {
 } from "@/features/courses/types/course";
 
 export const coursesApi = {
+  addCourseModule: (courseId: string, payload: AddCourseModulePayload) =>
+    httpClient.post<CourseModule>(`/dashboard/courses/${courseId}/modules/`, payload),
+  listAllModules: async () => {
+    const modules: ModuleListItem[] = [];
+    let page = 1;
+    while (true) {
+      const response = await httpClient.get<ModulesResponse>(`/dashboard/modules/?page=${page}&page_size=100`);
+      modules.push(...response.results);
+      if (!response.next) return modules;
+      page += 1;
+    }
+  },
   listLanguages: () => httpClient.get<SimpleLanguage[]>("/languages/simple/"),
-  listLanguageLevels: () => httpClient.get<LanguageLevelsResponse>("/dashboard/language-levels/"),
+  listLanguageLevels: async (): Promise<LanguageLevelsResponse> => {
+    const results: LanguageLevelsResponse['results'] = [];
+    let page = 1;
+    while (true) {
+      const response = await httpClient.get<LanguageLevelsResponse>(`/dashboard/language-levels/?page=${page}&page_size=100`);
+      results.push(...response.results);
+      if (!response.next) return { count: results.length, next: null, previous: null, results };
+      page += 1;
+    }
+  },
   listModules: () => httpClient.get<ModulesResponse>("/dashboard/modules/"),
   listCourses: (params: CoursesParams) => {
     const searchParams = new URLSearchParams();

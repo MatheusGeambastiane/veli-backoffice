@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: 0 0% 100%;
   --foreground: 222.2 47.4% 11.2%;
   --card: 0 0% 100%;
@@ -32,6 +33,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: 240 10% 4%;
   --foreground: 210 40% 98%;
   --card: 240 10% 6%;
@@ -179,4 +181,10 @@
   .assistant-thinking-dot {
     animation: none;
   }
+}
+
+/* Native dropdown menus inherit the active theme, including page-size controls. */
+select option, select optgroup {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
 }

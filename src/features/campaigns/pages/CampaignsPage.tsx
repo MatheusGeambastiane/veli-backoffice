@@ -304,7 +304,7 @@ export function CampaignsPage() {
         </div>
 
         <label className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-          <span className="text-xs uppercase tracking-wide">Page size</span>
+          <span className="text-xs uppercase tracking-wide">Itens por página</span>
           <select
             value={pageSize}
             onChange={(event) => handlePageSizeChange(Number(event.target.value))}

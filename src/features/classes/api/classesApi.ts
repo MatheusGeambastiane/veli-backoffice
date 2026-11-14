@@ -1,5 +1,6 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type {
+  ClassesListParams,
   ClassSubscription,
   ClassSubscriptionDetails,
   CreateSubscriptionPayload,
@@ -25,7 +26,7 @@ import type {
 } from "@/features/classes/types/class";
 
 export const classesApi = {
-  list: (params: { search?: string; is_active?: string; page_size?: number }) => {
+  list: (params: ClassesListParams) => {
     const searchParams = new URLSearchParams();
     if (params.search) {
       searchParams.set("search", params.search);
@@ -36,6 +37,9 @@ export const classesApi = {
     if (params.page_size) {
       searchParams.set("page_size", String(params.page_size));
     }
+    if (params.page) searchParams.set("page", String(params.page));
+    params.languageIds?.forEach((id) => searchParams.append("language", id));
+    params.days?.forEach((day) => searchParams.append("day", day));
     const query = searchParams.toString();
     const path = query ? `/dashboard/student-classes/?${query}` : "/dashboard/student-classes/";
     return httpClient.get<StudentClassesResponse>(path);

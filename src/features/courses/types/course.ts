@@ -8,7 +8,8 @@ export type Course = {
   id: number;
   name: string;
   language: number;
-  level: number;
+  level: number | null;
+  levels: number[];
   description: string | null;
   is_active: boolean;
   modules: number[];
@@ -30,8 +31,10 @@ export type CourseDetails = {
   language: number;
   language_name: string;
   language_icon: string | null;
-  level: number;
-  level_name: string;
+  level: number | null;
+  levels: number[];
+  level_name: string | null;
+  level_names: string[];
   student_classes_total: number;
   subscriptions_total: number;
   description: string | null;
@@ -88,8 +91,8 @@ export type UpdateModulePayload = {
 export type CreateCoursePayload = {
   name: string;
   language: number;
-  level: number;
-  description: string | null;
+  levels: number[];
+  description: string;
   is_active: boolean;
   modules: number[];
 };
@@ -97,8 +100,8 @@ export type CreateCoursePayload = {
 export type UpdateCoursePayload = {
   name: string;
   language: number;
-  level: number;
-  description: string | null;
+  levels: number[];
+  description: string;
   is_active: boolean;
   modules: number[];
 };
@@ -188,3 +191,5 @@ export type CoursesParams = {
   page: number;
   languageIds?: number[];
 };
+
+export type AddCourseModulePayload = CreateModulePayload | { module: number };

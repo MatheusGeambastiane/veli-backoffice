@@ -1,10 +1,11 @@
+import type { ClassesListParams } from "@/features/classes/types/class";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { classesApi } from "@/features/classes/api/classesApi";
 
 export const classesKeys = {
   all: ["classes"] as const,
-  list: (params: { search?: string; is_active?: string; page_size?: number }) =>
+  list: (params: ClassesListParams) =>
     [...classesKeys.all, "list", params] as const,
   details: (id: string) => [...classesKeys.all, "details", id] as const,
   coursesSimple: () => [...classesKeys.all, "courses-simple"] as const,
@@ -21,11 +22,7 @@ export const classesKeys = {
   eventDetails: (id: string) => [...classesKeys.all, "event-details", id] as const,
 };
 
-export function useClassesList(params: {
-  search?: string;
-  is_active?: string;
-  page_size?: number;
-}) {
+export function useClassesList(params: ClassesListParams) {
   const { status } = useSession();
 
   return useQuery({

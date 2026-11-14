@@ -2,8 +2,11 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { getClassName } from "@/features/classes/utils/className";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Filter, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { ClassFilterDropdown } from "@/features/classes/components/ClassFilterDropdown";
+import { useLanguagesSimple } from "@/features/courses/queries/coursesQueries";
 import { Input } from "@/shared/components/ui/input";
 import { Button, buttonVariants } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
@@ -41,6 +44,12 @@ export function ClassesPage() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
   const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState(1);
+  const [languageIds, setLanguageIds] = useState<string[]>([]);
+  const [filterDays, setFilterDays] = useState<string[]>([]);
+  const { data: languages, isLoading: loadingLanguages, isError: languagesError } = useLanguagesSimple();
+  const activeFilterRef = useRef<HTMLDivElement>(null);
+  const activeFilterButtonRef = useRef<HTMLButtonElement>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | "">("");
@@ -58,6 +67,9 @@ export function ClassesPage() {
     search: deferredSearch || undefined,
     is_active: activeFilter || undefined,
     page_size: pageSize,
+    page,
+    languageIds,
+    days: filterDays,
   });
   const { data: courses, isLoading: isLoadingCourses } = useCoursesSimpleOnDemand(isCreateOpen);
   const { data: teachers, isLoading: isLoadingTeachers } =
@@ -89,6 +101,19 @@ export function ClassesPage() {
     if (activeFilter === "false") return "Inativas";
     return "Todas";
   }, [activeFilter]);
+
+  useEffect(() => {
+    if (!isFilterOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !activeFilterRef.current?.contains(event.target)) setIsFilterOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setIsFilterOpen(false); activeFilterButtonRef.current?.focus(); }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
+  }, [isFilterOpen]);
 
   function resetCreateForm() {
     setSelectedCourseId("");
@@ -155,8 +180,9 @@ export function ClassesPage() {
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
+          <div className="relative" ref={activeFilterRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsFilterOpen(false); }}>
             <Button
+              ref={activeFilterButtonRef}
               type="button"
               variant="outline"
               className="h-11 gap-2"
@@ -178,6 +204,7 @@ export function ClassesPage() {
                   onClick={() => {
                     setActiveFilter("");
                     setIsFilterOpen(false);
+                    setPage(1);
                   }}
                   className={`w-full rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                     activeFilter === ""
@@ -193,6 +220,7 @@ export function ClassesPage() {
                   onClick={() => {
                     setActiveFilter("true");
                     setIsFilterOpen(false);
+                    setPage(1);
                   }}
                   className={`w-full rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                     activeFilter === "true"
@@ -208,6 +236,7 @@ export function ClassesPage() {
                   onClick={() => {
                     setActiveFilter("false");
                     setIsFilterOpen(false);
+                    setPage(1);
                   }}
                   className={`w-full rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                     activeFilter === "false"
@@ -221,13 +250,22 @@ export function ClassesPage() {
               </div>
             )}
           </div>
+          <ClassFilterDropdown
+            label="Idiomas" options={(languages ?? []).map((language) => ({ value: String(language.id), label: language.name }))}
+            selected={languageIds} onChange={(values) => { setLanguageIds(values); setPage(1); }}
+            isLoading={loadingLanguages} isError={languagesError}
+          />
+          <ClassFilterDropdown
+            label="Dias da semana" options={DAY_OPTIONS.map((day) => ({ value: day.value, label: day.fullLabel }))}
+            selected={filterDays} onChange={(values) => { setFilterDays(values); setPage(1); }}
+          />
           <label className="flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
             <span className="text-xs uppercase tracking-wide">Itens por página</span>
             <select
               value={pageSize}
-              onChange={(event) => setPageSize(Number(event.target.value))}
+              onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
               className="bg-transparent text-sm font-semibold text-foreground focus:outline-none"
-              aria-label="Selecionar page size"
+              aria-label="Selecionar itens por página"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -240,7 +278,7 @@ export function ClassesPage() {
         <div className="relative w-full max-w-[80%]">
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
             placeholder="Buscar turma"
             className="h-11 rounded-2xl"
             aria-label="Buscar turma"
@@ -277,7 +315,7 @@ export function ClassesPage() {
                       {item.language_icon_url ? (
                         <img
                           src={item.language_icon_url}
-                          alt={item.course_name}
+                          alt={getClassName(item)}
                           className="h-12 w-12 rounded-2xl border border-border object-cover"
                         />
                       ) : (
@@ -285,7 +323,7 @@ export function ClassesPage() {
                       )}
                       <div>
                         <p className="text-sm font-semibold text-foreground">
-                          {item.course_name}
+                          {getClassName(item)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Professor: {item.teacher_full_name ?? "Nao informado"}
@@ -357,6 +395,20 @@ export function ClassesPage() {
             </div>
           )}
         </div>
+      )}
+
+      {!showLoading && !isError && data && (
+        <nav aria-label="Paginação de turmas" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+          <p className="text-sm text-muted-foreground">Página {page} de {Math.max(1, Math.ceil(data.count / pageSize))} · {data.count} turmas</p>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" disabled={!data.previous || isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Anterior
+            </Button>
+            <Button type="button" variant="outline" disabled={!data.next || isFetching} onClick={() => setPage((current) => current + 1)}>
+              Próxima <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </nav>
       )}
 
       {isCreateOpen && (

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { coursesApi } from "@/features/courses/api/coursesApi";
 import type {
+  AddCourseModulePayload,
   CoursesParams,
   CreateCoursePayload,
   CreateModulePayload,
@@ -248,6 +249,26 @@ export function useUpdateModuleOrder() {
     mutationFn: (payload: { id: number; data: UpdateModulePayload }) =>
       coursesApi.updateModuleOrder(payload.id, payload.data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: coursesKeys.modules() });
+    },
+  });
+}
+
+export function useAvailableCourseModules(enabled: boolean) {
+  return useQuery({
+    queryKey: [...coursesKeys.modules(), 'all'],
+    queryFn: coursesApi.listAllModules,
+    enabled,
+  });
+}
+
+export function useAddCourseModule(courseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: AddCourseModulePayload) => coursesApi.addCourseModule(courseId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: coursesKeys.detail(courseId) });
+      queryClient.invalidateQueries({ queryKey: coursesKeys.lists() });
       queryClient.invalidateQueries({ queryKey: coursesKeys.modules() });
     },
   });

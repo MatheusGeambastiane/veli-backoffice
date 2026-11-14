@@ -2,6 +2,7 @@ export type StudentClass = {
   id: number;
   course: number;
   course_name: string;
+  name?: string;
   language_icon_url: string | null;
   teacher_profile: number | null;
   teacher_full_name: string | null;
@@ -425,4 +426,13 @@ export type LessonDoubt = {
 export type CreateDoubtAnswerPayload = {
   lesson_doubt: number;
   comment: string;
+};
+
+export type ClassesListParams = {
+  search?: string;
+  is_active?: string;
+  page_size?: number;
+  page?: number;
+  languageIds?: string[];
+  days?: string[];
 };

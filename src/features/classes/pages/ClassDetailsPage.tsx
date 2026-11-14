@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { getClassName } from "@/features/classes/utils/className";
 import {
   ArrowLeft,
   CalendarDays,
@@ -1026,7 +1027,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Detalhes da turma</p>
               <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
-                {data?.course_name ?? "Turma"}
+                {data ? getClassName(data) : "Turma"}
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -1086,7 +1087,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                   {data.language_icon_url ? (
                     <img
                       src={data.language_icon_url}
-                      alt={data.course_name}
+                      alt={getClassName(data)}
                       className="h-14 w-14 rounded-2xl border border-border object-cover"
                     />
                   ) : (
@@ -1117,7 +1118,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                           ))}
                         </select>
                       ) : (
-                        <p className="text-xl font-semibold text-foreground">{data.course_name}</p>
+                        <p className="text-xl font-semibold text-foreground">{getClassName(data)}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">

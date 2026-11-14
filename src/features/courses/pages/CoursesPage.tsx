@@ -3,6 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
+import { CourseLevelsPicker } from "@/features/courses/components/CourseLevelsPicker";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -37,12 +38,12 @@ export function CoursesPage() {
   const [courseName, setCourseName] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
   const [selectedLanguageId, setSelectedLanguageId] = useState<number | "">("");
-  const [selectedLevelId, setSelectedLevelId] = useState<number | "">("");
+  const [selectedLevelIds, setSelectedLevelIds] = useState<number[]>([]);
   const [selectedModuleIds, setSelectedModuleIds] = useState<number[]>([]);
   const deferredSearch = useDeferredValue(search.trim());
 
   const { data: languages, isLoading: isLoadingLanguages } = useLanguagesSimple();
-  const { data: languageLevels, isLoading: isLoadingLevels } = useLanguageLevels();
+  const { data: languageLevels, isLoading: isLoadingLevels, isError: isLevelsError } = useLanguageLevels();
   const { data: modulesData, isLoading: isLoadingModules } = useModulesList();
   const {
     data,
@@ -73,7 +74,7 @@ export function CoursesPage() {
 
   const filteredLevels = useMemo(() => {
     const levels = languageLevels?.results ?? [];
-    if (!selectedLanguageId) return levels;
+    if (!selectedLanguageId) return [];
     return levels.filter((level) => level.language === selectedLanguageId);
   }, [languageLevels, selectedLanguageId]);
 
@@ -82,7 +83,7 @@ export function CoursesPage() {
   const isCreateDisabled =
     !courseName.trim() ||
     !selectedLanguageId ||
-    !selectedLevelId ||
+    !selectedLevelIds.length || isLoadingLevels || isLevelsError ||
     createCourse.isPending;
 
   function handleModuleToggle(moduleId: number) {
@@ -104,7 +105,7 @@ export function CoursesPage() {
     setCourseName("");
     setCourseDescription("");
     setSelectedLanguageId("");
-    setSelectedLevelId("");
+    setSelectedLevelIds([]);
     setSelectedModuleIds([]);
   }
 
@@ -114,8 +115,8 @@ export function CoursesPage() {
       await createCourse.mutateAsync({
         name: courseName.trim(),
         language: Number(selectedLanguageId),
-        level: Number(selectedLevelId),
-        description: courseDescription.trim() ? courseDescription.trim() : null,
+        levels: selectedLevelIds,
+        description: courseDescription.trim(),
         is_active: true,
         modules: selectedModuleIds,
       });
@@ -220,7 +221,7 @@ export function CoursesPage() {
           onClear={clearLanguages}
         />
         <label className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-          <span className="text-xs uppercase tracking-wide">Page size</span>
+          <span className="text-xs uppercase tracking-wide">Itens por página</span>
           <select
             value={pageSize}
             onChange={(event) => handlePageSizeChange(Number(event.target.value))}
@@ -357,7 +358,7 @@ export function CoursesPage() {
                     onChange={(event) => {
                       const value = event.target.value;
                       setSelectedLanguageId(value ? Number(value) : "");
-                      setSelectedLevelId("");
+                      setSelectedLevelIds([]);
                     }}
                     className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -371,28 +372,15 @@ export function CoursesPage() {
                       ))}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nivel</label>
-                  <select
-                    value={selectedLevelId}
-                    onChange={(event) =>
-                      setSelectedLevelId(event.target.value ? Number(event.target.value) : "")
-                    }
-                    className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    disabled={!selectedLanguageId}
-                  >
-                    <option value="">
-                      {selectedLanguageId ? "Selecione o nivel" : "Selecione um idioma"}
-                    </option>
-                    {isLoadingLevels && <option>Carregando...</option>}
-                    {!isLoadingLevels &&
-                      filteredLevels.map((level) => (
-                        <option key={level.id} value={level.id}>
-                          {level.level}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                <CourseLevelsPicker
+                  levels={filteredLevels}
+                  selectedIds={selectedLevelIds}
+                  onChange={setSelectedLevelIds}
+                  hasLanguage={Boolean(selectedLanguageId)}
+                  isLoading={isLoadingLevels}
+                  isError={isLevelsError}
+                  disabled={createCourse.isPending}
+                />
               </div>
             </div>
 
