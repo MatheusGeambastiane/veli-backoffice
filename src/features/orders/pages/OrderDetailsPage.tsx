@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useDeleteOrder, useOrderDetails } from "@/features/orders/queries/ordersQueries";
+import { useClassDetails } from "@/features/classes/queries/classesQueries";
 import type {
   OrderDetail,
   OrderGatewayPayment,
@@ -192,6 +193,7 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
           <PaymentsCard payments={data.payments} gatewayPayments={gatewayPayments} />
         </div>
         <div className="space-y-6">
+          <ChosenClassCard order={data} />
           <OfferCard order={data} />
           <GatewayCard order={data} gatewayPayments={gatewayPayments} />
         </div>
@@ -298,6 +300,66 @@ function RequestCard({ order }: { order: OrderDetail }) {
         <Info label="CPF" value={order.user.cpf ?? "-"} />
         <Info label="Telefone" value={order.user.phone ?? "-"} />
       </div>
+    </SectionCard>
+  );
+}
+
+const WEEKDAY_LABELS: Record<string, string> = {
+  Mon: "Segunda-feira", Tue: "Terça-feira", Wed: "Quarta-feira",
+  Thu: "Quinta-feira", Fri: "Sexta-feira", Sat: "Sábado", Sun: "Domingo",
+};
+
+const PERIOD_LABELS: Record<string, string> = {
+  morning: "Manhã", afternoon: "Tarde", night: "Noite", no_preference: "Sem preferência",
+};
+
+function formatClassDate(value: string) {
+  const parts = value.split("-");
+  return parts.length === 3 ? parts.reverse().join("/") : value || "Não informado";
+}
+
+function ChosenClassCard({ order }: { order: OrderDetail }) {
+  const studentClass = order.class_preference;
+  const { data: classDetails } = useClassDetails(studentClass ? String(studentClass.id) : "");
+  const preferredPeriods = order.preference_period.map((period) => PERIOD_LABELS[period] ?? period).join(", ");
+
+  return (
+    <SectionCard icon={CalendarDays} title="Turma escolhida" subtitle="Seleção registrada neste pedido">
+      {studentClass ? (
+        <>
+          <div className="rounded-2xl border border-border bg-muted/30 p-4">
+            <p className="text-lg font-semibold text-foreground">
+              {classDetails?.name || `${studentClass.course_name} · Turma #${studentClass.id}`}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{studentClass.course_name}</p>
+            {studentClass.is_generic ? (
+              <p className="mt-2 text-sm text-muted-foreground">Turma genérica · horário a definir</p>
+            ) : null}
+          </div>
+          <div className="mt-5 grid gap-x-6 gap-y-5 sm:grid-cols-2">
+            <Info label="Identificador da turma" value={`#${studentClass.id}`} />
+            <Info label="Professor" value={studentClass.teacher_full_name || "A definir"} />
+            {!studentClass.is_generic ? (
+              <>
+                <Info label="Dias da semana" value={studentClass.days_of_week.map((day) => WEEKDAY_LABELS[day] ?? day).join(", ") || "A definir"} />
+                <Info label="Horário" value={studentClass.time?.slice(0, 5) || "A definir"} />
+                <Info label="Duração da aula" value={`${studentClass.duration} minutos`} />
+                <Info label="Período da turma" value={`${formatClassDate(studentClass.start_date)} até ${formatClassDate(studentClass.finish_date)}`} />
+              </>
+            ) : null}
+            {preferredPeriods ? <Info label="Turno de preferência" value={preferredPeriods} /> : null}
+          </div>
+          <Link href={`/classes/${studentClass.id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+            Abrir turma
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </>
+      ) : (
+        <div className="space-y-4">
+          <EmptyState message="Nenhuma turma específica foi escolhida neste pedido." />
+          {preferredPeriods ? <Info label="Turno de preferência" value={preferredPeriods} /> : null}
+        </div>
+      )}
     </SectionCard>
   );
 }
