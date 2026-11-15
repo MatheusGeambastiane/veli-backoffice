@@ -24,6 +24,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { LeadMetricCard } from "@/features/dashboard/components/LeadMetricCard";
 import { useDashboardSummary } from "@/features/dashboard/queries/dashboardQueries";
 import { useSessionUser } from "@/shared/auth/useSessionUser";
 import { Button } from "@/shared/components/ui/button";
@@ -286,7 +287,7 @@ export function DashboardPage() {
       </div>
 
       <div
-        className={cn("grid gap-4", isManager ? "xl:grid-cols-5" : "sm:grid-cols-2 xl:grid-cols-3")}
+        className={cn("grid gap-4", isManager ? "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" : "sm:grid-cols-2 xl:grid-cols-3")}
       >
         <MetricCard
           title="Alunos ativos"
@@ -348,6 +349,7 @@ export function DashboardPage() {
                 value: isLoading ? "..." : String(data?.total_orders_last_7_days ?? 0),
               }}
             />
+            <LeadMetricCard />
           </>
         )}
       </div>

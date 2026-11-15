@@ -13,6 +13,8 @@ import { Input } from "@/shared/components/ui/input";
 import { DataSurface, PageHeader, PageStat, PageToolbar } from "@/shared/components/ui/page";
 
 const PAGE_SIZE_OPTIONS = [20, 30, 50, 100] as const;
+const USERS_GRID_COLUMNS =
+  "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_9rem_8rem_2.5rem]";
 
 type RoleOption = {
   label: string;
@@ -25,6 +27,24 @@ const ROLE_OPTIONS: RoleOption[] = [
   { label: "Estudantes", value: "student" },
   { label: "Gerentes", value: "manager" },
 ];
+
+function roleLabel(role: string) {
+  switch (role.trim().toLowerCase()) {
+    case "student":
+      return "Estudante";
+    case "teacher":
+    case "teatcher":
+      return "Professor";
+    case "manager":
+      return "Gerente";
+    case "admin":
+      return "Administrador";
+    case "staff":
+      return "Equipe";
+    default:
+      return role;
+  }
+}
 
 function parsePageFromUrl(url: string | null) {
   if (!url) return null;
@@ -182,13 +202,13 @@ export function UsersListPage() {
       />
 
       <DataSurface>
-        <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto_auto] gap-3 border-b border-border/80 bg-muted/30 px-5 py-3 text-xs font-medium text-muted-foreground lg:grid">
+        <div className={`hidden ${USERS_GRID_COLUMNS} items-center gap-3 border-b border-border/80 bg-muted/30 px-5 py-3 text-left text-xs font-medium text-muted-foreground lg:grid`}>
           <span>Usuário</span>
           <span>Telefone</span>
           <span>Email</span>
           <span>Perfil</span>
           <span>Idiomas</span>
-          <span className="text-right">Ações</span>
+          <span className="text-center">Ações</span>
         </div>
 
         {isLoading && (
@@ -294,7 +314,7 @@ function UsersRow({ user }: { user: DashboardUser }) {
 
   return (
     <li className="px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto_auto] lg:items-center lg:gap-3">
+      <div className={`flex flex-col gap-4 ${USERS_GRID_COLUMNS} lg:grid lg:items-center lg:gap-3`}>
         <Link href={`/users/${user.id}`} className="flex min-w-0 items-center gap-3">
           <Avatar src={user.profile_pic} name={fullName} />
           <div className="min-w-0">
@@ -303,14 +323,14 @@ function UsersRow({ user }: { user: DashboardUser }) {
           </div>
         </Link>
 
-        <div className="text-sm text-muted-foreground">
+        <div className="min-w-0 text-sm text-muted-foreground">
           <span className="text-xs uppercase tracking-wide text-muted-foreground/80 lg:hidden">
             Telefone
           </span>
           <p className="truncate text-foreground">{user.phone ?? "-"}</p>
         </div>
 
-        <div className="text-sm text-muted-foreground">
+        <div className="min-w-0 text-sm text-muted-foreground">
           <span className="text-xs uppercase tracking-wide text-muted-foreground/80 lg:hidden">
             Email
           </span>
@@ -319,7 +339,7 @@ function UsersRow({ user }: { user: DashboardUser }) {
 
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-            {user.role}
+            {roleLabel(user.role)}
           </span>
         </div>
 

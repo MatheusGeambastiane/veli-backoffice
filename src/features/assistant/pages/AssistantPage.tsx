@@ -2,7 +2,18 @@
 
 import Image from "next/image";
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Clock3, Menu, MessageSquareText, Plus, Sparkles, X } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  Clock3,
+  Menu,
+  Mic,
+  Square,
+  MessageSquareText,
+  Plus,
+  Sparkles,
+  X,
+} from "lucide-react";
 import {
   useAssistantConversations,
   useAssistantMessages,
@@ -12,6 +23,17 @@ import {
 import type { AssistantConversation, AssistantMessage } from "@/features/assistant/types/assistant";
 import { HttpError } from "@/shared/lib/http/http";
 import { Topbar } from "@/shared/components/layout/Topbar";
+
+type SpeechRecognitionInstance = {
+  lang: string;
+  interimResults: boolean;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+};
 
 const suggestions = [
   {
@@ -87,6 +109,15 @@ export function AssistantPage() {
   const [pendingMessage, setPendingMessage] = useState("");
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [turnStart, setTurnStart] = useState<number | null>(null);
+  const [microphoneState, setMicrophoneState] = useState<"idle" | "requesting" | "listening">(
+    "idle",
+  );
+  const [microphoneMessage, setMicrophoneMessage] = useState("");
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const microphoneRequestRef = useRef(0);
+  const turnRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const conversations = useAssistantConversations(true);
@@ -102,13 +133,150 @@ export function AssistantPage() {
   }, [activeConversationId, conversations.data]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.data, pendingMessage, isBusy]);
+    const container = scrollRef.current;
+    if (!container) return;
+    const resize = () =>
+      container.style.setProperty("--chat-height", `${container.clientHeight}px`);
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "instant"
+      : "smooth";
+    if (pendingMessage) {
+      turnRef.current?.scrollIntoView({ behavior, block: "start" });
+    } else if (turnStart === null) {
+      endRef.current?.scrollIntoView({ behavior, block: "end" });
+    }
+  }, [messages.data, pendingMessage, turnStart]);
+
+  useEffect(
+    () => () => {
+      microphoneRequestRef.current += 1;
+      recognitionRef.current?.abort();
+    },
+    [],
+  );
+
+  function stopMicrophone() {
+    microphoneRequestRef.current += 1;
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setMicrophoneState("idle");
+  }
+
+  async function toggleMicrophone() {
+    if (microphoneState === "listening") {
+      recognitionRef.current?.stop();
+      return;
+    }
+    if (microphoneState === "requesting") return;
+    const requestId = ++microphoneRequestRef.current;
+    setMicrophoneMessage("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicrophoneMessage("O microfone requer HTTPS e um navegador compatível.");
+      return;
+    }
+    setMicrophoneState("requesting");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      if (requestId !== microphoneRequestRef.current) return;
+      const speechWindow = window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionInstance;
+        webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+      };
+      const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+      if (!Recognition) {
+        setMicrophoneState("idle");
+        setMicrophoneMessage(
+          "Acesso ao microfone permitido. Este navegador não oferece ditado por voz; use Chrome ou Edge para ditar.",
+        );
+        return;
+      }
+      const recognition = new Recognition();
+      recognitionRef.current = recognition;
+      recognition.lang = "pt-BR";
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        if (requestId !== microphoneRequestRef.current) return;
+        const text = Array.from(event.results, (result) => result[0].transcript).join(" ");
+        setDraft((current) => `${current.trim()} ${text}`.trim().slice(0, 4000));
+        inputRef.current?.focus();
+      };
+      recognition.onerror = (event) => {
+        if (requestId !== microphoneRequestRef.current) return;
+        // Invalidate callbacks before aborting; some engines emit error/onend again.
+        const errorRequestId = ++microphoneRequestRef.current;
+        recognitionRef.current = null;
+        recognition.abort();
+        setMicrophoneState("idle");
+        const errors: Record<string, string> = {
+          "not-allowed":
+            "Acesso ao microfone negado. Permita o uso nas configurações do navegador.",
+          "service-not-allowed":
+            "O navegador não disponibilizou o serviço de ditado. Use outro navegador compatível ou digite sua mensagem.",
+          "no-speech":
+            "Nenhuma fala foi detectada. Confira o microfone selecionado e tente falar novamente.",
+          "audio-capture":
+            "Não foi possível captar áudio. Confira se o microfone está conectado e disponível.",
+          network:
+            "O serviço de reconhecimento de fala não está disponível. Confira a conexão ou use outro navegador compatível.",
+          "language-not-supported":
+            "O ditado em português não está disponível neste navegador. Use outro navegador compatível ou digite sua mensagem.",
+          aborted: "",
+        };
+        setMicrophoneMessage(
+          errors[event.error] ??
+            "Não foi possível reconhecer a fala. Tente novamente ou digite sua mensagem.",
+        );
+        if (event.error === "network" || event.error === "service-not-allowed") {
+          const brave = (navigator as Navigator & { brave?: { isBrave: () => Promise<boolean> } })
+            .brave;
+          if (brave) {
+            void brave
+              .isBrave()
+              .then((isBrave) => {
+                if (isBrave && errorRequestId === microphoneRequestRef.current) {
+                  setMicrophoneMessage(
+                    "O Brave permitiu o microfone, mas não disponibilizou o serviço de ditado usado pelo chat. Para ditar, abra o chat no Chrome; no Brave, digite sua mensagem.",
+                  );
+                }
+              })
+              .catch(() => {
+                // Keep the service error when browser detection is unavailable.
+              });
+          }
+        }
+      };
+      recognition.onend = () => {
+        if (requestId !== microphoneRequestRef.current) return;
+        recognitionRef.current = null;
+        setMicrophoneState("idle");
+      };
+      recognition.start();
+      setMicrophoneState("listening");
+    } catch (error) {
+      if (requestId !== microphoneRequestRef.current) return;
+      setMicrophoneState("idle");
+      setMicrophoneMessage(
+        error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Acesso ao microfone negado. Permita o uso nas configurações do navegador."
+          : "Não foi possível acessar o microfone. Confira se ele está conectado e disponível.",
+      );
+    }
+  }
 
   async function submit(content: string) {
     const normalized = content.trim();
     if (!normalized || isBusy) return;
 
+    stopMicrophone();
+    setTurnStart(messages.data?.length ?? 0);
     setDraft("");
     setPendingMessage(normalized);
     try {
@@ -120,7 +288,8 @@ export function AssistantPage() {
       }
       await sendMessage.mutateAsync({ id: conversationId, content: normalized });
     } catch {
-      // Mutation errors are rendered in the conversation area.
+      setDraft(normalized);
+      setTurnStart(null);
     } finally {
       setPendingMessage("");
     }
@@ -140,6 +309,8 @@ export function AssistantPage() {
 
   async function startNewConversation() {
     if (isBusy) return;
+    stopMicrophone();
+    setTurnStart(null);
     try {
       const created = await createConversation.mutateAsync();
       setActiveConversationId(created.id);
@@ -152,6 +323,10 @@ export function AssistantPage() {
   }
 
   function selectConversation(id: number) {
+    if (isBusy) return;
+    stopMicrophone();
+    setTurnStart(null);
+    setMicrophoneMessage("");
     setActiveConversationId(id);
     setIsHistoryOpen(false);
   }
@@ -205,6 +380,7 @@ export function AssistantPage() {
                   key={conversation.id}
                   type="button"
                   onClick={() => selectConversation(conversation.id)}
+                  disabled={isBusy}
                   className={[
                     "group flex w-full items-start gap-2.5 rounded-md px-3 py-2.5 text-left transition",
                     isActive
@@ -270,7 +446,10 @@ export function AssistantPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto [scrollbar-width:thin]">
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-width:thin]"
+          >
             <div className="mx-auto flex min-h-full w-full max-w-none flex-col px-5 sm:w-[92%] sm:px-8 lg:w-[90%] lg:px-10">
               {messages.isLoading && activeConversationId !== null && (
                 <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
@@ -325,41 +504,62 @@ export function AssistantPage() {
 
               {hasMessages && (
                 <div className="space-y-8 py-8 sm:py-10">
-                  {messages.data?.map((message) => (
-                    <Message key={message.id} message={message} />
-                  ))}
-                  {pendingMessage && (
-                    <div className="flex justify-end">
-                      <div className="max-w-[84%] rounded-2xl rounded-br-md bg-foreground px-4 py-3 text-sm leading-6 text-background opacity-60 sm:max-w-[72%]">
-                        {pendingMessage}
-                      </div>
-                    </div>
+                  {(turnStart === null ? messages.data : messages.data?.slice(0, turnStart))?.map(
+                    (message) => (
+                      <Message key={message.id} message={message} />
+                    ),
                   )}
-                  {isBusy && (
-                    <div
-                      className="flex items-center gap-3"
-                      role="status"
-                      aria-label="Assistente pensando"
-                    >
-                      <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-border bg-white">
-                        <Image
-                          src="/herminho_headset.png"
-                          alt=""
-                          fill
-                          sizes="28px"
-                          className="object-cover"
-                        />
+                  <div
+                    ref={turnRef}
+                    className={
+                      turnStart !== null
+                        ? "min-h-[calc(var(--chat-height,500px)-5rem)] scroll-mt-8 space-y-8"
+                        : "space-y-8"
+                    }
+                  >
+                    {!pendingMessage &&
+                      turnStart !== null &&
+                      messages.data
+                        ?.slice(turnStart)
+                        .map((message) => <Message key={message.id} message={message} />)}
+                    {pendingMessage && (
+                      <div className="flex justify-end">
+                        <div className="max-w-[84%] rounded-2xl rounded-br-md bg-foreground px-4 py-3 text-sm leading-6 whitespace-pre-wrap text-background sm:max-w-[72%]">
+                          {pendingMessage}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        {[0, 1, 2].map((dot) => (
-                          <span
-                            key={dot}
-                            className="assistant-thinking-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                    )}
+                    {pendingMessage && (
+                      <div
+                        className="flex items-center gap-3"
+                        role="status"
+                        aria-label="Herminho está digitando a resposta"
+                      >
+                        <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-border bg-white">
+                          <Image
+                            src="/herminho_headset.png"
+                            alt=""
+                            fill
+                            sizes="28px"
+                            className="object-cover"
                           />
-                        ))}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Herminho está digitando
+                          </p>
+                          <div aria-hidden="true" className="flex h-5 items-center gap-1.5">
+                            {[0, 1, 2].map((dot) => (
+                              <span
+                                key={dot}
+                                className="assistant-thinking-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                              />
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                   <div ref={endRef} />
                 </div>
               )}
@@ -390,16 +590,41 @@ export function AssistantPage() {
                   <span className="text-xs text-muted-foreground">
                     Enter para enviar. Shift + Enter para nova linha.
                   </span>
-                  <button
-                    type="submit"
-                    disabled={!draft.trim() || isBusy}
-                    className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background transition hover:opacity-80 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
-                    aria-label="Enviar mensagem"
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void toggleMicrophone()}
+                      disabled={isBusy || microphoneState === "requesting"}
+                      aria-label={
+                        microphoneState === "listening" ? "Parar ditado" : "Usar microfone"
+                      }
+                      aria-pressed={microphoneState === "listening"}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition hover:bg-muted aria-pressed:bg-red-500/10 aria-pressed:text-red-600 disabled:opacity-40"
+                    >
+                      {microphoneState === "listening" ? (
+                        <Square className="h-3.5 w-3.5" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!draft.trim() || isBusy}
+                      className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background transition hover:opacity-80 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                      aria-label="Enviar mensagem"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
+              <p role="status" className="mt-2 text-center text-xs text-muted-foreground">
+                {microphoneState === "requesting"
+                  ? "Aguardando permissão para usar o microfone..."
+                  : microphoneState === "listening"
+                    ? "Ouvindo... Fale sua mensagem. Revise o texto antes de enviar."
+                    : microphoneMessage}
+              </p>
               <p className="mt-2 text-center text-[11px] leading-4 text-muted-foreground">
                 O assistente pode cometer erros. Confirme informações importantes antes de tomar
                 decisões.

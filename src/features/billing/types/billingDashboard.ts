@@ -1,3 +1,12 @@
+export type GatewayBalance = {
+  gateway: "asaas" | "abacatepay" | null;
+  gateway_name: string | null;
+  amount: number | string | null;
+  source: "gateway" | "unavailable" | "not_configured";
+  cached: boolean;
+  synced_at: string | null;
+};
+
 export type BillingSummaryPeriod = {
   overview: boolean;
   month: string | null;
@@ -6,6 +15,7 @@ export type BillingSummaryPeriod = {
 };
 
 export type BillingSummaryTotals = {
+  gateway_balance?: GatewayBalance;
   paid_orders_count: number;
   paid_payments_count: number;
   asaas_amount_gross: number;

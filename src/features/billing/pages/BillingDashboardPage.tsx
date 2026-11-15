@@ -168,7 +168,7 @@ function formatCurrencyString(value?: string | number | null) {
   return currencyFormatter.format(parsed);
 }
 
-function formatAsaasSyncDate(value?: string | null) {
+function formatGatewaySyncDate(value?: string | null) {
   if (!value) return null;
 
   const date = new Date(value);
@@ -690,6 +690,7 @@ export function BillingDashboardPage() {
   const createBill = useCreateBill();
   const createEmployeePayment = useCreateEmployeePayment();
   const totals = data?.totals;
+  const gatewayBalance = totals?.gateway_balance;
   const billedByOffer = data?.billed_amount_by_offer ?? [];
   const employeePayments = employeePaymentsData?.employee_payments ?? [];
   const bills = billsData?.results ?? [];
@@ -703,9 +704,17 @@ export function BillingDashboardPage() {
     {
       title: "Caixa",
       value: formatCurrency(cashAmount),
-      helperLabel: "Disponível no Asaas",
-      helperValue: formatCurrency(totals?.total_available_asaas),
-      helperTooltip: formatAsaasSyncDate(totals?.asaas_balance_synced_at),
+      helperLabel: gatewayBalance?.gateway_name
+        ? `Disponível no ${gatewayBalance.gateway_name}`
+        : "Saldo do gateway",
+      helperValue: gatewayBalance?.source === "gateway" && gatewayBalance.amount !== null
+        ? formatCurrencyString(gatewayBalance.amount)
+        : gatewayBalance?.source === "not_configured"
+          ? "Não configurado"
+          : isLoading ? "..." : "Indisponível",
+      helperTooltip: gatewayBalance?.source === "unavailable"
+        ? "Não foi possível consultar o saldo disponível no gateway."
+        : formatGatewaySyncDate(gatewayBalance?.synced_at),
       icon: HandCoins,
       cardClass:
         "border-teal-200/80 bg-card text-teal-950 hover:border-teal-500/25 hover:bg-teal-500/[0.04] dark:border-teal-500/20 dark:text-teal-50",

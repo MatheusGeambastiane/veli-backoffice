@@ -43,8 +43,10 @@ export function useSendAssistantMessage() {
     mutationFn: ({ id, content }: { id: number; content: string }) =>
       assistantApi.sendMessage(id, content),
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: assistantKeys.messages(variables.id) });
-      queryClient.invalidateQueries({ queryKey: assistantKeys.conversations() });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: assistantKeys.messages(variables.id) }),
+        queryClient.invalidateQueries({ queryKey: assistantKeys.conversations() }),
+      ]);
     },
   });
 }
