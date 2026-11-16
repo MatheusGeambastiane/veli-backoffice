@@ -12,10 +12,19 @@ import type {
   DashboardResetPasswordResponse,
   DashboardStudentProfileUpdatePayload,
   DashboardTeacherProfileUpdatePayload,
+  DashboardTeacherProfile,
   DashboardUserDetails,
 } from "@/features/users/types/dashboardUserDetails";
 
 export const usersApi = {
+  saveTeacherProfile: (
+    userId: string,
+    payload: Omit<DashboardTeacherProfileUpdatePayload, "user_id">,
+  ) =>
+    httpClient.patch<DashboardTeacherProfile>(
+      `/dashboard/users/${userId}/teacher-profile/`,
+      payload,
+    ),
   createDashboard: (payload: CreateDashboardUserValues) =>
     httpClient.post<DashboardUser>("/dashboard/users/", payload),
   list: () => httpClient.get<User[]>("/api/users"),

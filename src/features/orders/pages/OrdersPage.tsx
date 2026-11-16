@@ -450,7 +450,7 @@ export function OrdersPage() {
           <span>Aluno</span>
           <span>Status</span>
           <span>Turma</span>
-          <span>Valor</span>
+          <span>Valor pago</span>
           <span>Criado em</span>
           <span className="text-center">Ações</span>
         </div>
@@ -588,7 +588,7 @@ function OrderRow({
         )}
       </div>
 
-      <DataCell label="Valor" value={formatCurrency(order.offer_price)} />
+      <DataCell label="Valor pago" value={formatCurrency(order.total_paid)} />
       <DataCell label="Criado em" value={formatDateTime(order.created_at)} />
 
       <div className="relative z-20 flex justify-end xl:justify-center">

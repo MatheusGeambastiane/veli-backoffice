@@ -33,6 +33,7 @@ import {
   useUpdateDashboardUser,
 } from "@/features/users/queries/usersQueries";
 import type { DashboardUserDetails } from "@/features/users/types/dashboardUserDetails";
+import { TeacherProfileTab } from "@/features/users/components/TeacherProfileTab";
 
 type UserDetailsPageProps = {
   userId: string;
@@ -162,9 +163,12 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const resetPassword = useResetDashboardUserPassword(userId);
   const patchTeacherProfile = usePatchTeacherProfile(userId);
   const patchStudentProfile = usePatchStudentProfile(userId);
-  const [activeTab, setActiveTab] = useState<"personal" | "profile" | "system">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "profile" | "teacher" | "system">(
+    "personal",
+  );
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [hasCopiedPassword, setHasCopiedPassword] = useState(false);
   const [personalForm, setPersonalForm] = useState<PersonalFormState>(DEFAULT_PERSONAL_FORM);
   const [addressForm, setAddressForm] = useState<AddressFormState>(DEFAULT_ADDRESS_FORM);
@@ -243,6 +247,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
 
   const handleCancel = () => {
     if (!data) return;
+    setSaveError(null);
     setIsEditing(false);
     setActiveTab("personal");
     setHasCopiedPassword(false);
@@ -298,7 +303,8 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   };
 
   const handleSave = async () => {
-    if (!data) return;
+    if (!data || isSaving) return;
+    setSaveError(null);
     setIsSaving(true);
     try {
       const formData = createFormData(personalForm, addressForm);
@@ -307,7 +313,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
       }
       await updateUser.mutateAsync(formData);
 
-      if (data.role === "teacher" && teacherForm.profileId) {
+      if (!canManageSystem && data.role === "teacher" && teacherForm.profileId) {
         await patchTeacherProfile.mutateAsync({
           profileId: teacherForm.profileId,
           data: {
@@ -333,6 +339,8 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
 
       setIsEditing(false);
       setActiveTab("personal");
+    } catch (error) {
+      setSaveError(normalizeUserSaveError(error));
     } finally {
       setIsSaving(false);
     }
@@ -384,12 +392,13 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
             <ProfileAvatar
               src={profilePicPreview ?? data.profile_pic}
               name={fullName}
-              isEditable={isEditing}
+              isEditable={isEditing && !isSaving}
               onClick={() => profilePicInputRef.current?.click()}
             />
             <input
               ref={profilePicInputRef}
               type="file"
+              disabled={isSaving}
               accept="image/*"
               className="hidden"
               onChange={handleProfilePicChange}
@@ -418,38 +427,48 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
         </div>
       </div>
 
-      <fieldset className="rounded-3xl border border-border bg-card shadow-sm">
+      <fieldset disabled={isSaving} className="rounded-3xl border border-border bg-card shadow-sm">
         <legend className="sr-only">Dados do usuario</legend>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <TabButton isActive={activeTab === "personal"} onClick={() => setActiveTab("personal")}>
               Dados pessoais
             </TabButton>
-            <TabButton isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")}>
-              {profileTabLabel}
-            </TabButton>
+            {(!canManageSystem || data.role === "student") && (
+              <TabButton isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")}>
+                {profileTabLabel}
+              </TabButton>
+            )}
+            {canManageSystem && (
+              <TabButton isActive={activeTab === "teacher"} onClick={() => setActiveTab("teacher")}>
+                Perfil de professor
+              </TabButton>
+            )}
             {isEditing && canManageSystem && (
               <TabButton isActive={activeTab === "system"} onClick={() => setActiveTab("system")}>
                 Sistema
               </TabButton>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (isEditing) {
-                handleCancel();
-                return;
-              }
-              resetPassword.reset();
-              setHasCopiedPassword(false);
-              setIsEditing(true);
-            }}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label={isEditing ? "Cancelar edicao" : "Editar dados do usuario"}
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
+          {activeTab !== "teacher" && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isEditing) {
+                  handleCancel();
+                  return;
+                }
+                resetPassword.reset();
+                setSaveError(null);
+                setHasCopiedPassword(false);
+                setIsEditing(true);
+              }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label={isEditing ? "Cancelar edicao" : "Editar dados do usuario"}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div className="px-6 py-6">
@@ -460,6 +479,12 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
               addressForm={addressForm}
               setAddressForm={setAddressForm}
               isEditing={isEditing}
+            />
+          ) : activeTab === "teacher" && canManageSystem ? (
+            <TeacherProfileTab
+              key={data.id}
+              userId={String(data.id)}
+              profile={data.teacher_profile}
             />
           ) : activeTab === "profile" ? (
             <ProfileTab
@@ -493,7 +518,13 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
           )}
         </div>
 
-        {isEditing && (
+        {saveError && (
+          <p role="alert" className="mx-6 mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {saveError}
+          </p>
+        )}
+
+        {isEditing && activeTab !== "teacher" && (
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
               <X className="h-4 w-4" />
@@ -731,6 +762,25 @@ function PersonalTab({
       </div>
     </div>
   );
+}
+
+function normalizeUserSaveError(error: unknown) {
+  const fallback = "Não foi possível salvar as alterações. Tente novamente.";
+  if (!(error instanceof HttpError)) return fallback;
+  const labels: Record<string, string> = {
+    profile_pic: "Foto", date_of_birth: "Data de nascimento", cpf: "CPF",
+    username: "Nome de usuário", email: "Email", gender: "Gênero", role: "Perfil",
+  };
+  function messages(value: unknown): string[] {
+    if (typeof value === "string") return [value];
+    if (Array.isArray(value)) return value.flatMap(messages);
+    if (value && typeof value === "object") {
+      return Object.entries(value).flatMap(([key, detail]) =>
+        messages(detail).map((message) => labels[key] ? `${labels[key]}: ${message}` : message));
+    }
+    return [];
+  }
+  return messages(error.details).join(" ") || fallback;
 }
 
 function normalizeResetPasswordError(error: unknown) {

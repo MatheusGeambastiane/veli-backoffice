@@ -84,6 +84,7 @@ export type OfferOrdersByBillingOption = {
 };
 
 export type OfferDetail = {
+  description: string;
   id: number;
   name: string;
   campaign: OfferCampaignDetail | null;
@@ -117,6 +118,7 @@ export type SimpleOfferCourse = {
 export type SimpleOfferClass = {
   id: number;
   name: string;
+  course: number;
   is_generic: boolean;
 };
 
@@ -144,6 +146,7 @@ export type BillingOptionPayload = {
 };
 
 export type CreateOfferPayload = {
+  description: string;
   name: string;
   student_classes: number[];
   courses: number[];
@@ -158,8 +161,10 @@ export type CreateOfferPayload = {
 };
 
 export type UpdateOfferPayload = {
+  description: string;
   name: string;
   student_classes: number[];
+  courses: number[];
   price: string;
   payment_mode: PaymentMode[];
   plan_type: "one_time" | "monthly";

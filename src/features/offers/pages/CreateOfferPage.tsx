@@ -89,6 +89,7 @@ type CreateBillingOptionCode =
   | "MONTHLY_CREDIT_CARD";
 
 type OfferFormState = {
+  description: string;
   name: string;
   price: string;
   accessDurationDays: string;
@@ -116,6 +117,7 @@ type OfferFormErrors = Partial<
 >;
 
 const DEFAULT_FORM: OfferFormState = {
+  description: "",
   name: "",
   price: "",
   accessDurationDays: "",
@@ -393,6 +395,7 @@ export function CreateOfferPage() {
     try {
       await createOffer.mutateAsync({
         name: formState.name.trim(),
+        description: formState.description.trim(),
         student_classes: formState.studentClassIds,
         courses: [Number(formState.courseId)],
         access_duration_days: Number(formState.accessDurationDays),
@@ -475,6 +478,18 @@ export function CreateOfferPage() {
                   className="h-11 rounded-2xl"
                 />
                 {errors.name && <FieldError message={errors.name} />}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="offer-description" className="text-sm font-medium text-foreground">Descrição da oferta (opcional)</label>
+                <textarea
+                  id="offer-description"
+                  rows={4}
+                  value={formState.description}
+                  onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Descreva o que está incluído nesta oferta."
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm"
+                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

@@ -184,6 +184,7 @@ export type OrderListItem = {
   class_preference: OrderClassPreference | null;
   status: string;
   offer_price: string;
+  total_paid: string;
   created_at: string;
   billing_option: OrderBillingOption | null;
 };

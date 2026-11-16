@@ -717,10 +717,10 @@ export function BillingDashboardPage() {
         : formatGatewaySyncDate(gatewayBalance?.synced_at),
       icon: HandCoins,
       cardClass:
-        "border-teal-200/80 bg-card text-teal-950 hover:border-teal-500/25 hover:bg-teal-500/[0.04] dark:border-teal-500/20 dark:text-teal-50",
+        "border-teal-300 bg-card text-teal-950 hover:border-teal-400 [.dark_&]:hover:border-teal-500/25 hover:bg-teal-500/[0.04] [.dark_&]:border-teal-500/20 [.dark_&]:text-teal-50",
       gradientClass:
         "bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.18),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(45,212,191,0.12),transparent_26%)]",
-      iconClass: "bg-teal-200/70 text-teal-800 dark:bg-teal-400/15 dark:text-teal-200",
+      iconClass: "bg-teal-100 text-teal-800 [.dark_&]:bg-teal-400/15 [.dark_&]:text-teal-200",
     },
     {
       title: "Receita",
@@ -730,10 +730,10 @@ export function BillingDashboardPage() {
       helperTooltip: null,
       icon: CircleDollarSign,
       cardClass:
-        "border-emerald-200/80 bg-card text-emerald-950 hover:border-emerald-500/25 hover:bg-emerald-500/[0.04] dark:border-emerald-500/20 dark:text-emerald-50",
+        "border-emerald-300 bg-card text-emerald-950 hover:border-emerald-400 [.dark_&]:hover:border-emerald-500/25 hover:bg-emerald-500/[0.04] [.dark_&]:border-emerald-500/20 [.dark_&]:text-emerald-50",
       gradientClass:
         "bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(52,211,153,0.14),transparent_26%)]",
-      iconClass: "bg-emerald-200/70 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
+      iconClass: "bg-emerald-100 text-emerald-800 [.dark_&]:bg-emerald-400/15 [.dark_&]:text-emerald-200",
     },
     {
       title: "Despesa",
@@ -745,10 +745,10 @@ export function BillingDashboardPage() {
       helperTooltip: null,
       icon: Wallet,
       cardClass:
-        "border-rose-200/80 bg-card text-rose-950 hover:border-rose-500/25 hover:bg-rose-500/[0.04] dark:border-rose-500/20 dark:text-rose-50",
+        "border-rose-300 bg-card text-rose-950 hover:border-rose-400 [.dark_&]:hover:border-rose-500/25 hover:bg-rose-500/[0.04] [.dark_&]:border-rose-500/20 [.dark_&]:text-rose-50",
       gradientClass:
         "bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(251,113,133,0.12),transparent_26%)]",
-      iconClass: "bg-rose-200/70 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
+      iconClass: "bg-rose-100 text-rose-800 [.dark_&]:bg-rose-400/15 [.dark_&]:text-rose-200",
     },
     {
       title: "Ordens pagas",
@@ -758,10 +758,10 @@ export function BillingDashboardPage() {
       helperTooltip: null,
       icon: ClipboardCheck,
       cardClass:
-        "border-blue-200/80 bg-card text-blue-950 hover:border-blue-500/25 hover:bg-blue-500/[0.04] dark:border-blue-500/20 dark:text-blue-50",
+        "border-blue-300 bg-card text-blue-950 hover:border-blue-400 [.dark_&]:hover:border-blue-500/25 hover:bg-blue-500/[0.04] [.dark_&]:border-blue-500/20 [.dark_&]:text-blue-50",
       gradientClass:
         "bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(96,165,250,0.13),transparent_26%)]",
-      iconClass: "bg-blue-200/70 text-blue-800 dark:bg-blue-400/15 dark:text-blue-200",
+      iconClass: "bg-blue-100 text-blue-800 [.dark_&]:bg-blue-400/15 [.dark_&]:text-blue-200",
     },
   ] as const;
 
@@ -1838,8 +1838,8 @@ function BillingMetricCard({
       <CardContent className="relative p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-700 dark:text-white/65">{title}</p>
-            <p className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+            <p className="text-sm font-medium text-slate-700 [.dark_&]:text-white/65">{title}</p>
+            <p className="text-2xl font-semibold tracking-tight text-slate-950 [.dark_&]:text-white sm:text-3xl">
               {value}
             </p>
           </div>
@@ -1852,7 +1852,7 @@ function BillingMetricCard({
             {icon}
           </span>
         </div>
-        <div className="relative mt-5 rounded-lg border border-white/55 bg-white/65 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+        <div className="relative mt-5 rounded-lg border border-slate-300 bg-white/90 px-3 py-2 [.dark_&]:border-white/10 [.dark_&]:bg-white/5">
           <div
             className={cn(
               "group/tooltip flex w-fit items-center gap-1.5",
@@ -1860,18 +1860,18 @@ function BillingMetricCard({
             )}
             tabIndex={helperTooltip ? 0 : undefined}
           >
-            <p className="text-xs text-slate-600 dark:text-white/60">{helperLabel}</p>
-            {helperTooltip && <Info className="h-3.5 w-3.5 text-slate-500 dark:text-white/50" />}
+            <p className="text-xs text-slate-700 [.dark_&]:text-white/60">{helperLabel}</p>
+            {helperTooltip && <Info className="h-3.5 w-3.5 text-slate-500 [.dark_&]:text-white/50" />}
             {helperTooltip && (
               <span
                 role="tooltip"
-                className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-max max-w-[min(16rem,calc(100vw-3rem))] rounded-lg bg-slate-950 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 dark:bg-white dark:text-slate-950"
+                className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-max max-w-[min(16rem,calc(100vw-3rem))] rounded-lg bg-slate-950 px-3 py-2 text-xs font-medium text-white opacity-0 shadow-xl transition-opacity group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 [.dark_&]:bg-white [.dark_&]:text-slate-950"
               >
                 {helperTooltip}
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{helperValue}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-950 [.dark_&]:text-white">{helperValue}</p>
         </div>
       </CardContent>
     </Card>

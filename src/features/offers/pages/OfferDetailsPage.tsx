@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   useOfferCampaignsSimple,
+  useOfferCoursesSimple,
   useOfferDetails,
   useOfferStudentClassesSimple,
   useUpdateOffer,
@@ -33,6 +34,7 @@ import type {
   OfferBillingOption,
   OfferDetail,
   OfferOrdersByBillingOption,
+  SimpleOfferClass,
 } from "@/features/offers/types/offer";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -56,9 +58,11 @@ type BillingMethod = "pix" | "credit_card";
 type CashDiscountType = "fixed" | "percent";
 
 type OfferEditFormState = {
+  description: string;
   name: string;
   price: string;
   campaignId: number | "";
+  courseIds: number[];
   studentClassIds: number[];
   allowCashDiscount: boolean;
   cashDiscountType: CashDiscountType | "";
@@ -71,6 +75,7 @@ type OfferEditErrors = Partial<
     | "name"
     | "price"
     | "campaignId"
+    | "courseIds"
     | "studentClassIds"
     | "cashDiscountType"
     | "cashDiscountValue"
@@ -178,8 +183,12 @@ function planTypeFromBillingOptions(options: BillingOptionPayload[]) {
 function createFormState(data: OfferDetail): OfferEditFormState {
   return {
     name: data.name,
+    description: data.description ?? "",
     price: apiValueToCurrencyInput(data.price),
     campaignId: data.campaign?.id ?? "",
+    courseIds: data.student_classes.length > 0
+      ? Array.from(new Set(data.student_classes.map((studentClass) => studentClass.course)))
+      : data.courses.map((course) => course.id),
     studentClassIds: data.student_classes.map((studentClass) => studentClass.id),
     allowCashDiscount: data.allow_cash_discount,
     cashDiscountType:
@@ -275,6 +284,7 @@ function formatDaysOfWeek(days: string[]) {
 export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
   const { data, isLoading, isError } = useOfferDetails(offerId);
   const { data: campaigns, isLoading: isLoadingCampaigns } = useOfferCampaignsSimple();
+  const { data: courses, isLoading: isLoadingCourses } = useOfferCoursesSimple();
   const { data: studentClasses, isLoading: isLoadingStudentClasses } = useOfferStudentClassesSimple();
   const updateOffer = useUpdateOffer(offerId);
   const [isEditing, setIsEditing] = useState(false);
@@ -289,7 +299,18 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
   }, [data, isEditing]);
 
   const campaignOptions = useMemo(() => campaigns ?? [], [campaigns]);
-  const studentClassOptions = useMemo(() => studentClasses ?? [], [studentClasses]);
+  const courseOptions = useMemo(() => Array.from(new Map([
+    ...(data?.courses ?? []), ...(courses ?? []),
+  ].map((course) => [course.id, course])).values()), [courses, data]);
+  const studentClassOptions = useMemo(() => Array.from(new Map([
+    ...(data?.student_classes ?? []).map((item) => ({
+      id: item.id,
+      name: `${item.course_name} · ${formatDaysOfWeek(item.days_of_week)} · ${item.time.slice(0, 5)}`,
+      course: item.course,
+      is_generic: item.is_generic,
+    })),
+    ...(studentClasses ?? []),
+  ].map((item) => [item.id, item])).values()), [studentClasses, data]);
 
   function startEditing() {
     if (!data) return;
@@ -319,8 +340,18 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
     if (!state.campaignId) {
       nextErrors.campaignId = "Selecione uma campanha.";
     }
+    if (state.courseIds.length === 0) {
+      nextErrors.courseIds = "Selecione ao menos um curso.";
+    }
     if (state.studentClassIds.length === 0) {
       nextErrors.studentClassIds = "Selecione ao menos uma turma.";
+    } else {
+      const selectedClasses = studentClassOptions.filter((item) => state.studentClassIds.includes(item.id));
+      if (selectedClasses.length !== state.studentClassIds.length ||
+          selectedClasses.some((item) => !state.courseIds.includes(item.course)) ||
+          state.courseIds.some((id) => !selectedClasses.some((item) => item.course === id))) {
+        nextErrors.studentClassIds = "Selecione ao menos uma turma de cada curso escolhido.";
+      }
     }
     if (state.allowCashDiscount && !state.cashDiscountType) {
       nextErrors.cashDiscountType = "Selecione o tipo de desconto.";
@@ -371,7 +402,9 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
     try {
       await updateOffer.mutateAsync({
         name: formState.name.trim(),
+        description: formState.description.trim(),
         student_classes: formState.studentClassIds,
+        courses: formState.courseIds,
         price: normalizedPrice,
         payment_mode: derivePaymentMode(billingOptions),
         plan_type: planTypeFromBillingOptions(billingOptions),
@@ -420,6 +453,8 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
         errors={errors}
         setErrors={setErrors}
         campaigns={campaignOptions}
+        courses={courseOptions}
+        isLoadingCourses={isLoadingCourses}
         isLoadingCampaigns={isLoadingCampaigns}
         studentClasses={studentClassOptions}
         isLoadingStudentClasses={isLoadingStudentClasses}
@@ -473,6 +508,13 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
           </div>
         </div>
       </div>
+
+      {data.description?.trim() && (
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="text-sm font-semibold text-foreground">Descrição da oferta</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{data.description}</p>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Preco base" value={formatCurrency(data.price)} icon={CircleDollarSign} tone="orange" />
@@ -632,6 +674,8 @@ function OfferEditView({
   errors,
   setErrors,
   campaigns,
+  courses,
+  isLoadingCourses,
   isLoadingCampaigns,
   studentClasses,
   isLoadingStudentClasses,
@@ -646,8 +690,10 @@ function OfferEditView({
   errors: OfferEditErrors;
   setErrors: Dispatch<SetStateAction<OfferEditErrors>>;
   campaigns: { id: number; name: string }[];
+  courses: { id: number; name: string }[];
+  isLoadingCourses: boolean;
   isLoadingCampaigns: boolean;
-  studentClasses: { id: number; name: string; is_generic?: boolean }[];
+  studentClasses: SimpleOfferClass[];
   isLoadingStudentClasses: boolean;
   isSaving: boolean;
   hasSaveError: boolean;
@@ -784,6 +830,18 @@ function OfferEditView({
               {errors.name && <FieldError message={errors.name} />}
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="offer-description" className="text-sm font-medium text-foreground">Descrição da oferta (opcional)</label>
+              <textarea
+                id="offer-description"
+                rows={4}
+                value={formState.description}
+                onChange={(event) => updateForm({ description: event.target.value })}
+                placeholder="Descreva o que está incluído nesta oferta."
+                className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Preco base</label>
@@ -821,10 +879,35 @@ function OfferEditView({
             </div>
 
             <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Cursos</label>
+              <MultiSelectDropdown
+                label={courses.filter((course) => formState.courseIds.includes(course.id)).map((course) => course.name).join(", ") || "Selecionar cursos"}
+                options={courses.map((course) => ({ value: course.id, label: course.name }))}
+                selectedValues={formState.courseIds}
+                onToggle={(id) => {
+                  const courseIds = formState.courseIds.includes(id)
+                    ? formState.courseIds.filter((value) => value !== id)
+                    : [...formState.courseIds, id];
+                  updateForm({
+                    courseIds,
+                    studentClassIds: formState.studentClassIds.filter((classId) =>
+                      studentClasses.some((item) => item.id === classId && courseIds.includes(item.course))),
+                  });
+                  setErrors((current) => ({ ...current, courseIds: undefined, studentClassIds: undefined }));
+                }}
+                isLoading={isLoadingCourses}
+                emptyLabel="Nenhum curso encontrado."
+                ariaLabel="Selecionar cursos"
+              />
+              <p className="text-sm text-muted-foreground">Ao remover um curso, suas turmas são desmarcadas.</p>
+              {errors.courseIds && <FieldError message={errors.courseIds} />}
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Turmas</label>
               <MultiSelectDropdown
                 label={selectedClassLabel}
-                options={studentClasses.map((studentClass) => ({
+                options={studentClasses.filter((item) => formState.courseIds.includes(item.course)).map((studentClass) => ({
                   value: studentClass.id,
                   label: studentClass.name,
                   isGeneric: studentClass.is_generic,
