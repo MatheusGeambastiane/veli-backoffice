@@ -397,17 +397,22 @@ export function DashboardPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-12">
-        <div className="grid gap-6 xl:col-span-8 xl:grid-cols-2">
-          <div className="rounded-lg border border-border/80 bg-card p-5 sm:p-6">
+        <div className="grid min-w-0 gap-6 xl:col-span-8 xl:grid-cols-2">
+          <div className="min-w-0 rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">Alunos por turma ativa</h2>
+                <h2 id="students-by-active-class-title" className="text-lg font-semibold text-foreground">Alunos por turma ativa</h2>
               </div>
               <span className="w-fit rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
                 Distribuição
               </span>
             </div>
-            <div className="mt-6">
+            <div
+              role="region"
+              aria-labelledby="students-by-active-class-title"
+              tabIndex={0}
+              className="mt-6 max-h-96 overflow-auto overscroll-contain rounded-md pr-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <ActiveClassesPieChart
                 items={activeClasses}
                 totalStudents={totalStudentsByClass}
@@ -416,17 +421,22 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/80 bg-card p-5 sm:p-6">
+          <div className="min-w-0 rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">Turmas ativas</h2>
+                <h2 id="active-classes-title" className="text-lg font-semibold text-foreground">Turmas ativas</h2>
                 <p className="text-sm text-muted-foreground">Resumo das turmas em andamento.</p>
               </div>
               <span className="w-fit rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
                 {activeClasses.length} turmas
               </span>
             </div>
-            <div className="mt-6">
+            <div
+              role="region"
+              aria-labelledby="active-classes-title"
+              tabIndex={0}
+              className="mt-6 max-h-96 overflow-auto overscroll-contain rounded-md pr-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <ActiveClassesSummary items={activeClasses} />
             </div>
           </div>
