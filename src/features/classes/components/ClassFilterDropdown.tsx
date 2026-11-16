@@ -29,7 +29,17 @@ export function ClassFilterDropdown({ label, options, selected, onChange, isLoad
     return () => { document.removeEventListener('pointerdown', closeOutside); document.removeEventListener('keydown', escape); };
   }, [open]);
   return (
-    <div ref={root} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+    <div
+      ref={root}
+      className="relative"
+      onBlur={(event) => {
+        // Clicking a label briefly clears focus before its checkbox receives it.
+        // Outside pointer clicks are handled by the document listener above.
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+        }
+      }}
+    >
       <Button ref={trigger} type="button" variant="outline" className="h-11 gap-2" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
         {label}{selected.length > 0 ? ` (${selected.length})` : ''}<ChevronDown className="h-4 w-4" aria-hidden="true" />
       </Button>
