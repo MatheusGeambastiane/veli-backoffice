@@ -2,7 +2,40 @@ import type { LeadStage } from "@/features/analytics/types/placementLeads";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { analyticsApi } from "@/features/analytics/api/analyticsApi";
-import type { AnalyticsPeriod, AnalyticsSource } from "@/features/analytics/types/analytics";
+import type { AnalyticsPeriod, AnalyticsResponse, AnalyticsSource } from "@/features/analytics/types/analytics";
+
+export function useReviewAnalyticsError() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["review-analytics-error"],
+    mutationFn: ({ eventId, isSeen }: { eventId: string; isSeen: boolean }) =>
+      analyticsApi.reviewError(eventId, isSeen),
+    onSuccess: (updated) => {
+      queryClient.setQueriesData<AnalyticsResponse>({ queryKey: ["analytics"] }, (previous) => previous ? {
+        ...previous,
+        errors: previous.errors.map((error) => error.event_id === updated.event_id ? updated : error),
+      } : previous);
+      return queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    },
+  });
+}
+
+export function useReviewAllAnalyticsErrors() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["review-analytics-error"],
+    mutationFn: async (eventIds: string[]) => {
+      for (const eventId of eventIds) {
+        const updated = await analyticsApi.reviewError(eventId, true);
+        queryClient.setQueriesData<AnalyticsResponse>({ queryKey: ["analytics"] }, (previous) => previous ? {
+          ...previous,
+          errors: previous.errors.map((error) => error.event_id === updated.event_id ? updated : error),
+        } : previous);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+  });
+}
 
 export function useAnalytics(source: AnalyticsSource, period: AnalyticsPeriod) {
   const { status } = useSession();

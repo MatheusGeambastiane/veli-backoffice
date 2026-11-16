@@ -53,7 +53,6 @@ export function LoginForm() {
         <Input
           id="email"
           type="email"
-          placeholder="mariaprofessora@example.com"
           autoComplete="email"
           className="h-12 rounded-md border-white/10 bg-[#111827] px-4 text-[15px] text-[#F8FAFC] placeholder:text-[#64748B] hover:border-blue-400/30 focus-visible:border-[#3B82F6] focus-visible:ring-[#3B82F6]/20 sm:h-[52px] sm:text-base"
           {...register("email")}
@@ -69,18 +68,17 @@ export function LoginForm() {
           <Label htmlFor="password" className="text-[13px] font-semibold text-[#E2E8F0]">
             Senha
           </Label>
-          <button
-            type="button"
+          <a
+            href="/recuperar-senha"
             className="rounded-md text-[13px] font-medium text-[#60A5FA] transition-colors hover:text-[#93C5FD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1120]"
           >
             Esqueceu a senha?
-          </button>
+          </a>
         </div>
         <div className="group relative">
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
-            placeholder="Secret123!"
             autoComplete="current-password"
             className="h-12 rounded-md border-white/10 bg-[#111827] px-4 pr-12 text-[15px] text-[#F8FAFC] placeholder:text-[#64748B] hover:border-blue-400/30 focus-visible:border-[#3B82F6] focus-visible:ring-[#3B82F6]/20 sm:h-[52px] sm:text-base"
             {...register("password")}

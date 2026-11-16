@@ -6,6 +6,8 @@ import {
   AlertTriangle,
   ArrowDownRight,
   Clock3,
+  Check,
+  Copy,
   Eye,
   Loader2,
   MousePointerClick,
@@ -15,11 +17,14 @@ import {
   X,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useAnalytics } from "@/features/analytics/queries/analyticsQueries";
+import { useAnalytics, useReviewAnalyticsError, useReviewAllAnalyticsErrors } from "@/features/analytics/queries/analyticsQueries";
+import { useIsMutating } from "@tanstack/react-query";
 import type { AnalyticsError, AnalyticsPeriod, AnalyticsSource, RankedItem } from "@/features/analytics/types/analytics";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { PageHeader } from "@/shared/components/ui/page";
+
+import { UtmBuilder } from "@/features/analytics/components/UtmBuilder";
 
 const number = new Intl.NumberFormat("pt-BR");
 const periods: Array<{ value: AnalyticsPeriod; label: string }> = [
@@ -55,6 +60,64 @@ function RankList({ items, empty = "Sem dados no período" }: { items: RankedIte
   );
 }
 
+function errorName(error: AnalyticsError) {
+  return error.message || `Erro ${error.http_status ?? "de rede"}`;
+}
+
+function ErrorActions({ error }: { error: AnalyticsError }) {
+  const review = useReviewAnalyticsError();
+  const saving = useIsMutating({ mutationKey: ["review-analytics-error"] }) > 0;
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+
+  async function copyName() {
+    try {
+      await navigator.clipboard.writeText(errorName(error));
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex cursor-pointer items-center gap-2 text-sm" title={error.seen_at ? `Visto em ${new Date(error.seen_at).toLocaleString("pt-BR")}` : "Marcar como visto"}>
+        <input
+          type="checkbox"
+          className="size-4 accent-primary"
+          checked={Boolean(error.is_seen)}
+          disabled={saving}
+          aria-label={`Visto: ${errorName(error)}`}
+          onChange={(event) => review.mutate({ eventId: error.event_id, isSeen: event.target.checked })}
+        />
+        Visto
+      </label>
+      <Button type="button" variant="ghost" size="sm" onClick={copyName} aria-label="Copiar nome do erro" title="Copiar nome do erro">
+        {copyState === "copied" ? <Check className="size-4" /> : <Copy className="size-4" />}
+      </Button>
+      <span role="status" className="text-xs text-muted-foreground">{copyState === "copied" ? "Copiado" : copyState === "failed" ? "Não foi possível copiar. Selecione e copie o texto." : ""}</span>
+      {review.isError ? <p role="alert" className="w-full text-xs text-destructive">Não foi possível salvar a marcação. Tente novamente.</p> : null}
+    </div>
+  );
+}
+
+function ReviewAllErrors({ errors }: { errors: AnalyticsError[] }) {
+  const review = useReviewAllAnalyticsErrors();
+  const saving = useIsMutating({ mutationKey: ["review-analytics-error"] }) > 0;
+  const unseenIds = errors.filter((error) => !error.is_seen).map((error) => error.event_id);
+  if (!errors.some((error) => error.is_seen)) return null;
+
+  return (
+    <div className="space-y-2">
+      <Button type="button" size="sm" variant="outline" disabled={saving || !unseenIds.length} onClick={() => review.mutate(unseenIds)} title="Marcar todos os erros exibidos nesta lista como vistos">
+        {review.isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+        {review.isPending ? "Salvando..." : "Selecionar todos como visto"}
+      </Button>
+      {review.isError ? <p role="alert" className="text-xs text-destructive">Não foi possível marcar todos. Tente novamente para salvar os restantes.</p> : null}
+      {review.isSuccess ? <p role="status" className="text-xs text-muted-foreground">Todos os erros da lista foram marcados como vistos.</p> : null}
+    </div>
+  );
+}
+
 function ErrorDetails({ error, onClose }: { error: AnalyticsError; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-foreground/20 backdrop-blur-[2px]" onClick={onClose}>
@@ -62,11 +125,12 @@ function ErrorDetails({ error, onClose }: { error: AnalyticsError; onClose: () =
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-destructive">Diagnóstico do erro</p>
-            <h2 className="mt-2 text-xl font-semibold">{error.message || "Falha na aplicação"}</h2>
+            <h2 className="mt-2 text-xl font-semibold">{errorName(error)}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{new Date(error.occurred_at).toLocaleString("pt-BR")}</p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="Fechar"><X className="size-4" /></Button>
         </div>
+        <div className="mt-4"><ErrorActions error={error} /></div>
         <dl className="mt-6 grid gap-3 rounded-lg border border-border bg-muted/30 p-4 text-sm sm:grid-cols-2">
           <div><dt className="text-muted-foreground">Página</dt><dd className="mt-1 break-all font-medium">{error.path || "-"}</dd></div>
           <div><dt className="text-muted-foreground">Aluno</dt><dd className="mt-1 font-medium">{error.user || "Não identificado"}</dd></div>
@@ -83,8 +147,9 @@ function ErrorDetails({ error, onClose }: { error: AnalyticsError; onClose: () =
 export function AnalyticsPage() {
   const [source, setSource] = useState<AnalyticsSource>("site");
   const [period, setPeriod] = useState<AnalyticsPeriod>("7d");
-  const [selectedError, setSelectedError] = useState<AnalyticsError | null>(null);
+  const [selectedErrorId, setSelectedErrorId] = useState<string | null>(null);
   const { data, isLoading, error } = useAnalytics(source, period);
+  const selectedError = data?.errors.find((item) => item.event_id === selectedErrorId);
   const stats = data?.big_numbers;
   const cards = [
     { label: "Acessos", value: stats ? number.format(stats.total_accesses) : "-", icon: Eye },
@@ -130,7 +195,7 @@ export function AnalyticsPage() {
 
         <div className="grid gap-4 lg:grid-cols-3">
           <Card><CardHeader><CardTitle className="text-base">Páginas mais visitadas</CardTitle></CardHeader><CardContent><RankList items={data.top_pages} /></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-base">{source === "student" ? "Aulas mais visitadas" : "Origens de acesso"}</CardTitle></CardHeader><CardContent><RankList items={source === "student" ? data.top_lessons : data.origins.map((item) => ({ label: item.origin, total: item.total }))} /></CardContent></Card>
+          <Card><CardHeader className="flex-row flex-wrap items-center justify-between gap-3"><CardTitle className="text-base">{source === "student" ? "Aulas mais visitadas" : "Origens de acesso"}</CardTitle><UtmBuilder key={source} source={source} /></CardHeader><CardContent><RankList items={source === "student" ? data.top_lessons : data.origins.map((item) => ({ label: item.origin, total: item.total }))} /></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-base">{source === "student" ? "Ofertas mais visitadas" : "Ofertas visualizadas"}</CardTitle></CardHeader><CardContent><RankList items={data.top_offers} /></CardContent></Card>
         </div>
 
@@ -145,11 +210,29 @@ export function AnalyticsPage() {
         ].map(([label, value]) => <div key={String(label)} className="rounded-lg border border-border bg-muted/25 p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{number.format(Number(value))}</p></div>)}</div><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b border-border text-xs text-muted-foreground"><th className="pb-3 font-medium">Lead</th><th className="pb-3 font-medium">Idioma / nível</th><th className="pb-3 font-medium">Progresso</th><th className="pb-3 font-medium">Entrada</th><th className="pb-3 text-right font-medium">Conversão</th></tr></thead><tbody className="divide-y divide-border">{data.placement_test.recent_leads.map((lead) => <tr key={lead.id}><td className="py-3"><p className="font-medium">{lead.name}</p><p className="text-xs text-muted-foreground">{lead.phone}</p></td><td className="py-3">{lead.language} · {lead.level || "Em avaliação"}</td><td className="py-3">{lead.questions_answered}/{lead.max_questions}</td><td className="py-3 text-muted-foreground">{new Date(lead.started_at).toLocaleString("pt-BR")}</td><td className="py-3 text-right"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${lead.has_purchased ? "bg-emerald-100 text-emerald-800" : lead.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{lead.has_purchased ? "Comprou" : lead.status === "completed" ? "Concluiu" : "Em andamento"}</span></td></tr>)}</tbody></table>{!data.placement_test.recent_leads.length ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum lead captado no período.</p> : null}</div></CardContent></Card> : null}
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Erros recentes</CardTitle></CardHeader>
-          <CardContent className="px-0 pb-0"><div className="divide-y divide-border">{data.errors.length ? data.errors.map((item) => <button key={item.event_id} className="flex w-full items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/50" onClick={() => setSelectedError(item)}><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive"><AlertTriangle className="size-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{item.message || `Erro ${item.http_status ?? "de rede"}`}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{item.path} {item.endpoint ? `· ${item.endpoint}` : ""}</span></span><span className="hidden text-xs text-muted-foreground sm:block">{new Date(item.occurred_at).toLocaleString("pt-BR")}</span></button>) : <p className="px-6 pb-6 text-sm text-muted-foreground">Nenhum erro registrado no período.</p>}</div></CardContent>
+          <CardHeader className="flex-row flex-wrap items-center justify-between gap-3"><CardTitle className="text-base">Erros recentes</CardTitle><ReviewAllErrors key={`${source}-${period}`} errors={data.errors} /></CardHeader>
+          <CardContent className="px-0 pb-0">
+            <div className="max-h-96 overflow-y-auto overscroll-contain divide-y divide-border" role="region" aria-label="Lista de erros recentes" tabIndex={0}>
+              {data.errors.length ? data.errors.map((item) => (
+                <div key={item.event_id} className="flex flex-wrap items-center gap-x-4 px-6 py-4 hover:bg-muted/50">
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-4 py-2 text-left" onClick={() => setSelectedErrorId(item.event_id)}>
+                    <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${item.is_seen ? "bg-muted text-muted-foreground" : "bg-destructive/10 text-destructive"}`}>
+                      {item.is_seen ? <Check className="size-4" /> : <AlertTriangle className="size-4" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{errorName(item)}</span>
+                      <span className="mt-1 block truncate text-xs text-muted-foreground">{item.path} {item.endpoint ? `· ${item.endpoint}` : ""}</span>
+                    </span>
+                    <span className="hidden text-xs text-muted-foreground sm:block">{new Date(item.occurred_at).toLocaleString("pt-BR")}</span>
+                  </button>
+                  <ErrorActions error={item} />
+                </div>
+              )) : <p className="px-6 pb-6 text-sm text-muted-foreground">Nenhum erro registrado no período.</p>}
+            </div>
+          </CardContent>
         </Card>
       </> : null}
-      {selectedError ? <ErrorDetails error={selectedError} onClose={() => setSelectedError(null)} /> : null}
+      {selectedError ? <ErrorDetails key={selectedError.event_id} error={selectedError} onClose={() => setSelectedErrorId(null)} /> : null}
     </div>
   );
 }

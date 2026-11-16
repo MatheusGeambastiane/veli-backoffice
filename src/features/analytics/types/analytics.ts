@@ -16,6 +16,9 @@ export type AnalyticsError = {
   metadata: Record<string, unknown>;
   session_id: string;
   user: string | null;
+  is_seen: boolean;
+  seen_at: string | null;
+  seen_by: number | null;
 };
 
 export type AnalyticsResponse = {

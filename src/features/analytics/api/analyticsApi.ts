@@ -1,5 +1,5 @@
 import { httpClient } from "@/shared/lib/http/http";
-import type { AnalyticsPeriod, AnalyticsResponse, AnalyticsSource } from "@/features/analytics/types/analytics";
+import type { AnalyticsError, AnalyticsPeriod, AnalyticsResponse, AnalyticsSource } from "@/features/analytics/types/analytics";
 import type {
   DashboardLanguage,
   LeadStage,
@@ -24,6 +24,8 @@ function questionBody(payload: PlacementQuestionPayload) {
 }
 
 export const analyticsApi = {
+  reviewError: (eventId: string, isSeen: boolean) =>
+    httpClient.patch<AnalyticsError>(`/dashboard/analytics/errors/${encodeURIComponent(eventId)}/`, { is_seen: isSeen }),
   summary: (source: AnalyticsSource, period: AnalyticsPeriod) =>
     httpClient.get<AnalyticsResponse>(`/dashboard/analytics/?source=${source}&period=${period}`),
   placementLeads: (page: number, search: string, stage?: LeadStage) =>
