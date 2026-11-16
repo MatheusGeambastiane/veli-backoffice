@@ -1,3 +1,5 @@
+export type PlacementLeadFilters = { language?: string; estimated_level?: string };
+
 export const leadStages = [
   { value: "not_contacted", label: "Não contatado", color: "border-t-slate-400" },
   { value: "discarded", label: "Descartado", color: "border-t-rose-400" },

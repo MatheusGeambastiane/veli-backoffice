@@ -3,6 +3,7 @@ import type { AnalyticsError, AnalyticsPeriod, AnalyticsResponse, AnalyticsSourc
 import type {
   DashboardLanguage,
   LeadStage,
+  PlacementLeadFilters,
   LeadSummary,
   Paginated,
   PlacementLeadDetail,
@@ -23,16 +24,23 @@ function questionBody(payload: PlacementQuestionPayload) {
   return body;
 }
 
+function leadParams(search: string, filters: PlacementLeadFilters) {
+  const params = new URLSearchParams({ search });
+  if (filters.language) params.set("language", filters.language);
+  if (filters.estimated_level) params.set("estimated_level", filters.estimated_level);
+  return params;
+}
+
 export const analyticsApi = {
   reviewError: (eventId: string, isSeen: boolean) =>
     httpClient.patch<AnalyticsError>(`/dashboard/analytics/errors/${encodeURIComponent(eventId)}/`, { is_seen: isSeen }),
   summary: (source: AnalyticsSource, period: AnalyticsPeriod) =>
     httpClient.get<AnalyticsResponse>(`/dashboard/analytics/?source=${source}&period=${period}`),
-  placementLeads: (page: number, search: string, stage?: LeadStage) =>
+  placementLeads: (page: number, search: string, stage?: LeadStage, filters: PlacementLeadFilters = {}) =>
     httpClient.get<Paginated<PlacementLeadSummary>>(
-      `/dashboard/placement-leads/?page=${page}&search=${encodeURIComponent(search)}${stage ? `&stage=${stage}` : ""}`,
+      `/dashboard/placement-leads/?page=${page}&${leadParams(search, filters)}${stage ? `&stage=${stage}` : ""}`,
     ),
-  leadSummary: (search: string) => httpClient.get<LeadSummary>(`/dashboard/placement-leads/summary/?search=${encodeURIComponent(search)}`),
+  leadSummary: (search: string, filters: PlacementLeadFilters = {}) => httpClient.get<LeadSummary>(`/dashboard/placement-leads/summary/?${leadParams(search, filters)}`),
   placementLead: (id: number) =>
     httpClient.get<PlacementLeadDetail>(`/dashboard/placement-leads/${id}/`),
   updatePlacementLead: (id: number, payload: { is_contacted?: boolean; observation?: string; stage?: LeadStage }) =>

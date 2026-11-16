@@ -6,7 +6,7 @@ import { Columns3, List, ArrowLeft, ArrowRight, Check, Clipboard, Loader2, Searc
 import { LeadKanban } from "@/features/analytics/components/LeadKanban";
 import { leadStages } from "@/features/analytics/types/placementLeads";
 import { PlacementLeadDrawer } from "@/features/analytics/components/PlacementLeadDrawer";
-import { useLeadSummary, usePlacementLeads } from "@/features/analytics/queries/analyticsQueries";
+import { useDashboardLanguages, useLeadSummary, usePlacementLeads } from "@/features/analytics/queries/analyticsQueries";
 import { Button, buttonVariants } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
@@ -20,12 +20,16 @@ export function PlacementLeadsPage() {
   const [view, setView] = useState<"list" | "kanban">("list");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [language, setLanguage] = useState("");
+  const [level, setLevel] = useState("");
+  const languages = useDashboardLanguages();
+  const filters = { language, estimated_level: level };
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
-  const { data, isLoading, error } = usePlacementLeads(page, deferredSearch);
+  const { data, isLoading, error } = usePlacementLeads(page, deferredSearch, filters);
 
-  const summary = useLeadSummary(deferredSearch);
+  const summary = useLeadSummary(deferredSearch, filters);
 
   async function copyPhone(phone: string) {
     await navigator.clipboard.writeText(phone);
@@ -45,13 +49,31 @@ export function PlacementLeadsPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {[{ label: "Total de leads", value: summary.data?.total }, ...leadStages.map((stage) => ({ label: stage.label, value: summary.data?.stages[stage.value] })), { label: "Taxa de sucesso", value: summary.data ? `${summary.data.success_rate.toLocaleString("pt-BR")}%` : undefined }].map((item) => <Card key={item.label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{item.label}</p><p className="mt-2 text-3xl font-semibold tabular-nums">{summary.isError ? "—" : item.value ?? "—"}</p></CardContent></Card>)}
       </div>
-      <p className="text-xs text-muted-foreground">Taxa de sucesso = contratados ÷ total de leads. Os indicadores consideram todos os contatos encontrados na busca.</p>
+      <p className="text-xs text-muted-foreground">Taxa de sucesso = contratados ÷ total de leads. Os indicadores consideram todos os contatos encontrados na busca e nos filtros do último teste.</p>
       {summary.isError ? <p role="alert" className="text-sm text-destructive">Não foi possível carregar os indicadores. <button className="underline" onClick={() => void summary.refetch()}>Tentar novamente</button></p> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-md"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Buscar leads" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Buscar por nome, telefone ou e-mail" className="pl-9" /></div>
         <div className="flex gap-2" role="group" aria-label="Visualização de leads"><Button variant={view === "list" ? "default" : "outline"} aria-pressed={view === "list"} onClick={() => setView("list")}><List className="size-4" />Lista</Button><Button variant={view === "kanban" ? "default" : "outline"} aria-pressed={view === "kanban"} onClick={() => setView("kanban")}><Columns3 className="size-4" />Kanban</Button></div>
       </div>
-      {view === "kanban" ? <LeadKanban search={deferredSearch} onOpen={setSelectedLead} /> : <>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm sm:flex-none">
+          Idioma do teste
+          <select value={language} disabled={languages.isLoading || languages.isError} onChange={(event) => { setLanguage(event.target.value); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">{languages.isLoading ? "Carregando idiomas…" : "Todos os idiomas"}</option>
+            {languages.data?.results.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
+          </select>
+        </label>
+        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm sm:flex-none">
+          Nível do teste
+          <select value={level} onChange={(event) => { setLevel(event.target.value); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">Todos os níveis</option>
+            {["A1", "A2", "B1", "B2", "C1", "C2"].map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        {language || level ? <Button variant="outline" onClick={() => { setLanguage(""); setLevel(""); setPage(1); }}>Limpar filtros</Button> : null}
+      </div>
+      {languages.isError ? <p role="alert" className="text-sm text-destructive">Não foi possível carregar os idiomas. <button className="underline" onClick={() => void languages.refetch()}>Tentar novamente</button></p> : null}
+      {view === "kanban" ? <LeadKanban search={deferredSearch} filters={filters} onOpen={setSelectedLead} /> : <>
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           {isLoading && !data ? <div className="flex min-h-72 items-center justify-center"><Loader2 className="size-7 animate-spin text-primary" /></div> : error ? <div className="p-10 text-center text-sm text-destructive">Não foi possível carregar os leads.</div> : data?.results.length ? <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm"><thead className="border-b border-border bg-muted/35 text-xs text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Lead</th><th className="px-5 py-3 font-medium">Último teste</th><th className="px-5 py-3 font-medium">Telefone</th><th className="px-5 py-3 font-medium">Etapa comercial</th><th className="px-5 py-3 font-medium">Contratação</th><th className="px-5 py-3 text-right font-medium">Entrada</th></tr></thead><tbody className="divide-y divide-border">{data.results.map((lead) => (
@@ -63,7 +85,7 @@ export function PlacementLeadsPage() {
               <td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lead.has_purchased ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{lead.has_purchased ? "Contratou" : "Não contratou"}</span></td>
               <td className="px-5 py-4 text-right text-xs text-muted-foreground">{formatDate(lead.started_at)}</td>
             </tr>
-          ))}</tbody></table></div> : <div className="flex min-h-72 flex-col items-center justify-center gap-3 p-8 text-center"><UserRoundSearch className="size-9 text-muted-foreground" /><p className="font-medium">Nenhum lead encontrado</p><p className="text-sm text-muted-foreground">Os contatos aparecem aqui assim que iniciarem o teste.</p></div>}
+          ))}</tbody></table></div> : <div className="flex min-h-72 flex-col items-center justify-center gap-3 p-8 text-center"><UserRoundSearch className="size-9 text-muted-foreground" /><p className="font-medium">Nenhum lead encontrado</p><p className="text-sm text-muted-foreground">Nenhum contato corresponde à busca e aos filtros selecionados.</p></div>}
         </CardContent>
       </Card>
 

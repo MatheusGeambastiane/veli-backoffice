@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { GripVertical, Loader2 } from "lucide-react";
 import { useLeadColumn, useUpdatePlacementLead } from "@/features/analytics/queries/analyticsQueries";
-import { leadStages, type LeadStage } from "@/features/analytics/types/placementLeads";
+import { leadStages, type LeadStage, type PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
 import { Button } from "@/shared/components/ui/button";
 
 type ColumnProps = {
-  stage: typeof leadStages[number]; search: string; busy: boolean;
+  stage: typeof leadStages[number]; search: string; filters: PlacementLeadFilters; busy: boolean;
   onOpen: (id: number) => void; onMove: (id: number, stage: LeadStage) => void;
 };
 
-function LeadColumn({ stage, search, busy, onOpen, onMove }: ColumnProps) {
-  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useLeadColumn(search, stage.value);
+function LeadColumn({ stage, search, filters, busy, onOpen, onMove }: ColumnProps) {
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useLeadColumn(search, stage.value, filters);
   const [over, setOver] = useState(false);
   return (
     <section aria-label={stage.label} onDragOver={(event) => { if (!busy && event.dataTransfer.types.includes("application/x-veli-lead")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setOver(true); } }}
@@ -43,7 +43,7 @@ function LeadColumn({ stage, search, busy, onOpen, onMove }: ColumnProps) {
   );
 }
 
-export function LeadKanban({ search, onOpen }: { search: string; onOpen: (id: number) => void }) {
+export function LeadKanban({ search, filters, onOpen }: { search: string; filters: PlacementLeadFilters; onOpen: (id: number) => void }) {
   const mutation = useUpdatePlacementLead();
   const [notice, setNotice] = useState("");
   function move(id: number, stage: LeadStage) {
@@ -54,6 +54,6 @@ export function LeadKanban({ search, onOpen }: { search: string; onOpen: (id: nu
     <p className="text-xs text-muted-foreground">Arraste os cartões entre as etapas ou use o seletor de cada lead.</p>
     <div role="status" aria-live="polite" className="text-sm">{mutation.isPending ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Salvando etapa…</span> : notice}</div>
     {mutation.isError ? <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Não foi possível mover o lead. A etapa anterior foi mantida. Tente novamente.</p> : null}
-    <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">{leadStages.map((stage) => <LeadColumn key={stage.value} stage={stage} search={search} busy={mutation.isPending} onOpen={onOpen} onMove={move} />)}</div>
+    <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">{leadStages.map((stage) => <LeadColumn key={stage.value} stage={stage} search={search} filters={filters} busy={mutation.isPending} onOpen={onOpen} onMove={move} />)}</div>
   </div>;
 }

@@ -322,12 +322,19 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   function normalizeDays(days: string[] | undefined) {
     if (!days?.length) return [];
     const ordered = DAYS_OF_WEEK_OPTIONS.map((option) => option.value);
-    return ordered.filter((day) => days.includes(day));
+    const normalized = new Set(days.map((day) => day.trim().slice(0, 3).toLowerCase()));
+    return ordered.filter((day) => normalized.has(day.toLowerCase()));
   }
 
   function normalizeDate(value: string | null | undefined) {
     if (!value) return "";
-    return value.length >= 10 ? value.slice(0, 10) : value;
+    const date = value.trim();
+    const brazilianDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(date);
+    if (brazilianDate) {
+      const [, day, month, year] = brazilianDate;
+      return `${year}-${month}-${day}`;
+    }
+    return date.slice(0, 10);
   }
 
   function parseBrazilianDate(value: string) {

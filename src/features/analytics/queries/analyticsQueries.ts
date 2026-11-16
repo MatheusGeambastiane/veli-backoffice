@@ -1,4 +1,4 @@
-import type { LeadStage } from "@/features/analytics/types/placementLeads";
+import type { LeadStage, PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { analyticsApi } from "@/features/analytics/api/analyticsApi";
@@ -47,13 +47,12 @@ export function useAnalytics(source: AnalyticsSource, period: AnalyticsPeriod) {
   });
 }
 
-export function usePlacementLeads(page: number, search: string) {
+export function usePlacementLeads(page: number, search: string, filters: PlacementLeadFilters = {}) {
   const { status } = useSession();
   return useQuery({
-    queryKey: ["placement-leads", page, search],
-    queryFn: () => analyticsApi.placementLeads(page, search),
+    queryKey: ["placement-leads", page, search, filters],
+    queryFn: () => analyticsApi.placementLeads(page, search, undefined, filters),
     enabled: status === "authenticated",
-    placeholderData: (previous) => previous,
   });
 }
 
@@ -109,17 +108,17 @@ export function useSavePlacementQuestion() {
   });
 }
 
-export function useLeadSummary(search: string) {
+export function useLeadSummary(search: string, filters: PlacementLeadFilters = {}) {
   const { status } = useSession();
-  return useQuery({ queryKey: ["lead-summary", search], queryFn: () => analyticsApi.leadSummary(search), enabled: status === "authenticated" });
+  return useQuery({ queryKey: ["lead-summary", search, filters], queryFn: () => analyticsApi.leadSummary(search, filters), enabled: status === "authenticated" });
 }
 
-export function useLeadColumn(search: string, stage: LeadStage) {
+export function useLeadColumn(search: string, stage: LeadStage, filters: PlacementLeadFilters = {}) {
   const { status } = useSession();
   return useInfiniteQuery({
-    queryKey: ["placement-leads", "kanban", search, stage],
+    queryKey: ["placement-leads", "kanban", search, stage, filters],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => analyticsApi.placementLeads(pageParam, search, stage),
+    queryFn: ({ pageParam }) => analyticsApi.placementLeads(pageParam, search, stage, filters),
     getNextPageParam: (last, pages) => last.next ? pages.length + 1 : undefined,
     enabled: status === "authenticated",
   });
