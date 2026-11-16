@@ -1,5 +1,7 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type { User } from "@/features/users/types/user";
+import type { CreateDashboardUserValues } from "@/features/users/schemas/createDashboardUserSchema";
+import type { DashboardUser } from "@/features/users/types/dashboardUser";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
 import type {
   DashboardUsersParams,
@@ -14,6 +16,8 @@ import type {
 } from "@/features/users/types/dashboardUserDetails";
 
 export const usersApi = {
+  createDashboard: (payload: CreateDashboardUserValues) =>
+    httpClient.post<DashboardUser>("/dashboard/users/", payload),
   list: () => httpClient.get<User[]>("/api/users"),
   listDashboard: (params: DashboardUsersParams) => {
     const searchParams = new URLSearchParams();

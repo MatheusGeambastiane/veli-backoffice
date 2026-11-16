@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersApi } from "@/features/users/api/usersApi";
 import type { UserFormValues } from "@/features/users/schemas/userSchema";
+import type { CreateDashboardUserValues } from "@/features/users/schemas/createDashboardUserSchema";
 import type { DashboardUsersParams } from "@/features/users/types/dashboardUser";
 import type {
   DashboardMyProfileUpdatePayload,
@@ -135,6 +136,17 @@ export function useCreateUser() {
     mutationFn: (payload: UserFormValues) => usersApi.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: usersKeys.list() });
+    },
+  });
+}
+
+export function useCreateDashboardUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateDashboardUserValues) => usersApi.createDashboard(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: usersKeys.dashboard() });
     },
   });
 }

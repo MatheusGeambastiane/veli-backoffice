@@ -2,7 +2,9 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
+import { CreateDashboardUserModal } from "@/features/users/components/CreateDashboardUserModal";
+import { Button } from "@/shared/components/ui/button";
 import { useDashboardUsersList } from "@/features/users/queries/usersQueries";
 import type {
   DashboardLanguage,
@@ -37,6 +39,8 @@ function roleLabel(role: string) {
       return "Professor";
     case "manager":
       return "Gerente";
+    case "administrative":
+      return "Administrativo";
     case "admin":
       return "Administrador";
     case "staff":
@@ -78,6 +82,8 @@ function getLanguageMeta(language: DashboardLanguage | string) {
 }
 
 export function UsersListPage() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createdMessage, setCreatedMessage] = useState("");
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<RoleOption["value"]>("all");
   const [pageSize, setPageSize] = useState<number>(20);
@@ -133,8 +139,19 @@ export function UsersListPage() {
       <PageHeader
         title="Usuários"
         description="Busque, filtre e acompanhe os acessos da equipe."
-        actions={<PageStat label="Total" value={totalCount} />}
+        actions={<>
+          <PageStat label="Total" value={totalCount} />
+          <Button type="button" onClick={() => { setCreatedMessage(""); setIsCreateOpen(true); }}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Novo usuário
+          </Button>
+        </>}
       />
+
+      {createdMessage && <p role="status" className="text-sm text-primary">{createdMessage}</p>}
+      {isCreateOpen && <CreateDashboardUserModal onClose={() => setIsCreateOpen(false)} onCreated={() => {
+        setIsCreateOpen(false);
+        setCreatedMessage("Usuário criado com sucesso.");
+      }} />}
 
       <PageToolbar className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="relative">
