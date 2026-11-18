@@ -6,6 +6,19 @@ import type {
 } from "@/features/orders/types/order";
 
 export const ordersApi = {
+  checkoutGateways: () => httpClient.get<string[]>("/dashboard/orders/checkout-gateways/"),
+  createCheckout: (payload: {
+    request_id: string;
+    user: number;
+    offer: number;
+    billing_option: number;
+    amount_due: string;
+    gateway_choice: string;
+  }) =>
+    httpClient.post<{ order_id: number; checkout_url: string; gateway: string }>(
+      "/dashboard/orders/create-checkout/",
+      payload,
+    ),
   list: (params: OrderListParams) => {
     const searchParams = new URLSearchParams();
 

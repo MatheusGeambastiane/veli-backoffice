@@ -7,6 +7,17 @@ export type GatewayBalance = {
   synced_at: string | null;
 };
 
+export type GatewayFinancialStatement = {
+  gateway: "abacatepay";
+  billed_amount: string;
+  fee_amount: string;
+  net_amount: string;
+  available_balance: string;
+  count: number;
+  synced_at: string;
+  cached: boolean;
+};
+
 export type BillingSummaryPeriod = {
   overview: boolean;
   month: string | null;
@@ -16,6 +27,9 @@ export type BillingSummaryPeriod = {
 
 export type BillingSummaryTotals = {
   gateway_balance?: GatewayBalance;
+  total_received_asaas?: number | string;
+  asaas_received_source?: "gateway" | "local_fallback";
+  asaas_received_synced_at?: string | null;
   paid_orders_count: number;
   paid_payments_count: number;
   asaas_amount_gross: number;
@@ -71,9 +85,20 @@ export type BillingSummaryParams = {
   end_date?: string;
 };
 
+export type BillingGateway = "asaas" | "stripe" | "abacatepay";
+
 export type MonthlyPlanPaymentsParams = {
   month: string;
   sync: boolean;
+  gateways?: BillingGateway[];
+  sync_request_id?: number;
+};
+
+export type GatewaySyncResult = {
+  synced: number;
+  checked?: number;
+  errors?: number;
+  gateway_available: boolean;
 };
 
 export type MonthlyPlanPaymentTotals = {
@@ -120,7 +145,8 @@ export type MonthlyPlanPayments = {
     month: string;
     start_date: string;
     end_date: string;
-    asaas_sync: boolean | null;
+    gateway_sync: Partial<Record<BillingGateway, GatewaySyncResult>> | null;
+    asaas_sync: GatewaySyncResult | null;
   };
   totals: MonthlyPlanPaymentTotals;
   plans: MonthlyPlanPaymentPlan[];
@@ -436,4 +462,18 @@ export type CreateEmployeePaymentPayload = {
   is_recurring: boolean;
   recurrence: EmployeePaymentRecurrence;
   recurrence_end_date: string | null;
+};
+
+export type GatewayMetric = {
+  source: "gateway" | "unavailable" | "not_configured";
+  amounts: Array<{ currency: string; amount: string }>;
+  synced_at: string | null;
+  cached: boolean;
+};
+
+export type GatewayMetrics = {
+  gateway: BillingGateway;
+  gateway_name: string;
+  balance: GatewayMetric;
+  revenue: GatewayMetric;
 };

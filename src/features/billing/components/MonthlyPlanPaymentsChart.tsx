@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Loader2,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -13,7 +21,10 @@ import {
   YAxis,
 } from "recharts";
 import { useMonthlyPlanPayments } from "@/features/billing/queries/billingQueries";
-import type { MonthlyPlanPayments } from "@/features/billing/types/billingDashboard";
+import type {
+  BillingGateway,
+  MonthlyPlanPayments,
+} from "@/features/billing/types/billingDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { cn } from "@/shared/lib/utils";
 
@@ -31,6 +42,12 @@ const compactCurrencyFormatter = new Intl.NumberFormat("pt-BR", {
 });
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
+
+const GATEWAY_OPTIONS: Array<{ value: BillingGateway; label: string }> = [
+  { value: "asaas", label: "Asaas" },
+  { value: "stripe", label: "Stripe" },
+  { value: "abacatepay", label: "AbacatePay" },
+];
 
 const STATUS_META = {
   paid: {
@@ -110,12 +127,42 @@ function MonthlyPaymentTooltip({
   );
 }
 
-export function MonthlyPlanPaymentsChart({ month }: { month: string }) {
-  const [syncWithGateway, setSyncWithGateway] = useState(false);
+export function MonthlyPlanPaymentsChart({
+  month,
+  selectedGateways,
+  onSelectedGatewaysChange,
+  onSync,
+}: {
+  month: string;
+  selectedGateways: BillingGateway[];
+  onSelectedGatewaysChange: (gateways: BillingGateway[]) => void;
+  onSync: () => void;
+}) {
+  const [isGatewaySelectorOpen, setIsGatewaySelectorOpen] = useState(false);
+  const [requestedGateways, setRequestedGateways] = useState<BillingGateway[]>([]);
+  const [syncRequestId, setSyncRequestId] = useState(0);
   const { data, isLoading, isError, isFetching } = useMonthlyPlanPayments({
     month,
-    sync: syncWithGateway,
+    sync: syncRequestId > 0,
+    gateways: requestedGateways,
+    sync_request_id: syncRequestId,
   });
+
+  function toggleGateway(gateway: BillingGateway) {
+    onSelectedGatewaysChange(
+      selectedGateways.includes(gateway)
+        ? selectedGateways.filter((item) => item !== gateway)
+        : [...selectedGateways, gateway],
+    );
+  }
+
+  function handleGatewaySync() {
+    if (!selectedGateways.length || isFetching) return;
+    onSync();
+    setRequestedGateways([...selectedGateways]);
+    setSyncRequestId((current) => current + 1);
+    setIsGatewaySelectorOpen(false);
+  }
 
   const chartData = useMemo(() => {
     const amounts = getStatusAmounts(data);
@@ -151,37 +198,95 @@ export function MonthlyPlanPaymentsChart({ month }: { month: string }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/35 px-3.5 py-2.5">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-sm">
-            <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-          </span>
-          <label htmlFor="billing-gateway-sync" className="cursor-pointer">
-            <span className="block text-sm font-semibold text-foreground">
-              Sincronizar com gateway
-            </span>
-            <span className="block text-xs text-muted-foreground">
-              Consulta dados atualizados no Asaas
-            </span>
-          </label>
+        <div className="w-full lg:w-[22rem]">
           <button
-            id="billing-gateway-sync"
             type="button"
-            role="switch"
-            aria-checked={syncWithGateway}
-            aria-label="Sincronizar mensalidades com o gateway"
-            onClick={() => setSyncWithGateway((current) => !current)}
-            className={cn(
-              "relative inline-flex h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              syncWithGateway ? "border-emerald-500 bg-emerald-500" : "border-border bg-muted",
-            )}
+            aria-expanded={isGatewaySelectorOpen}
+            aria-controls="billing-gateway-selector"
+            onClick={() => setIsGatewaySelectorOpen((current) => !current)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-muted/35 px-3.5 py-2.5 text-left transition-colors hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <span
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-sm">
+              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">
+                Sincronizar com gateway
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {selectedGateways.length
+                  ? selectedGateways
+                      .map(
+                        (gateway) =>
+                          GATEWAY_OPTIONS.find((option) => option.value === gateway)?.label,
+                      )
+                      .join(", ")
+                  : "Selecione ao menos um gateway"}
+              </span>
+            </span>
+            <ChevronDown
               className={cn(
-                "absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
-                syncWithGateway ? "translate-x-6" : "translate-x-1",
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                isGatewaySelectorOpen && "rotate-180",
               )}
             />
           </button>
+
+          {isGatewaySelectorOpen ? (
+            <div
+              id="billing-gateway-selector"
+              className="mt-2 rounded-2xl border border-border bg-background p-2 shadow-lg"
+            >
+              <p className="px-2 pb-2 pt-1 text-xs font-medium text-muted-foreground">
+                Escolha quais contas deseja consultar
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {GATEWAY_OPTIONS.map((option) => {
+                  const isSelected = selectedGateways.includes(option.value);
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      onClick={() => toggleGateway(option.value)}
+                      className={cn(
+                        "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        isSelected
+                          ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          : "border-border bg-muted/25 text-muted-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "grid h-5 w-5 place-items-center rounded-md border",
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-border bg-background",
+                        )}
+                      >
+                        {isSelected ? <Check className="h-3.5 w-3.5" /> : null}
+                      </span>
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                disabled={!selectedGateways.length || isFetching}
+                onClick={handleGatewaySync}
+                className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isFetching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Sincronizar selecionados
+              </button>
+            </div>
+          ) : null}
         </div>
       </CardHeader>
 

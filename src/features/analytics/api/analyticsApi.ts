@@ -28,6 +28,7 @@ function leadParams(search: string, filters: PlacementLeadFilters) {
   const params = new URLSearchParams({ search });
   if (filters.language) params.set("language", filters.language);
   if (filters.estimated_level) params.set("estimated_level", filters.estimated_level);
+  if (filters.has_purchased) params.set("has_purchased", filters.has_purchased);
   return params;
 }
 

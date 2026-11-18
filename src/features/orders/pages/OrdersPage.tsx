@@ -21,6 +21,8 @@ import { Input } from "@/shared/components/ui/input";
 import { DataSurface, PageHeader, PageStat, PageToolbar } from "@/shared/components/ui/page";
 import { cn } from "@/shared/lib/utils";
 
+import { CreateOrderDialog } from "@/features/orders/components/CreateOrderDialog";
+
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 const STATUS_OPTIONS = [
@@ -166,6 +168,7 @@ function positiveInteger(value: string | null, fallback: number) {
 }
 
 export function OrdersPage() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialGeneric = searchParams.get("is_generic");
@@ -181,7 +184,8 @@ export function OrdersPage() {
   );
   const [dateFrom, setDateFrom] = useState(() => searchParams.get("date_from") ?? "");
   const [dateTo, setDateTo] = useState(() => searchParams.get("date_to") ?? "");
-  const [preferencePeriods, setPreferencePeriods] = useState<OrderPreferencePeriod[]>(initialPeriods);
+  const [preferencePeriods, setPreferencePeriods] =
+    useState<OrderPreferencePeriod[]>(initialPeriods);
   const [page, setPage] = useState(() => positiveInteger(searchParams.get("page"), 1));
   const [pageSize, setPageSize] = useState<number>(() =>
     positiveInteger(searchParams.get("page_size"), 20),
@@ -290,7 +294,14 @@ export function OrdersPage() {
       <PageHeader
         title="Pedidos"
         description="Acompanhe pedidos, pagamentos e preferências de turma dos alunos."
-        actions={<PageStat label="Total" value={totalCount} />}
+        actions={
+          <>
+            <Button type="button" className="h-11" onClick={() => setIsCreateOpen(true)}>
+              Criar novo pedido
+            </Button>
+            <PageStat label="Total" value={totalCount} />
+          </>
+        }
       />
 
       <PageToolbar>
@@ -498,6 +509,8 @@ export function OrdersPage() {
         onNext={goToNextPage}
         isFetching={isFetching}
       />
+
+      {isCreateOpen && <CreateOrderDialog onClose={() => setIsCreateOpen(false)} />}
 
       {deleteTarget && (
         <DeleteOrderDialog
@@ -717,9 +730,9 @@ function DeleteOrderDialog({
 
         <div className="space-y-4 px-6 py-5">
           <p className="text-sm leading-6 text-muted-foreground">
-            Você está excluindo o pedido de {" "}
-            <strong className="text-foreground">{order.user.full_name}</strong>. Esta ação não
-            pode ser desfeita.
+            Você está excluindo o pedido de{" "}
+            <strong className="text-foreground">{order.user.full_name}</strong>. Esta ação não pode
+            ser desfeita.
           </p>
           <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
             Os vínculos dependentes do pedido também podem ser removidos.

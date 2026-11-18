@@ -86,10 +86,12 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-md text-[#64748B] transition-colors duration-200 hover:text-[#3B82F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827] group-focus-within:text-[#3B82F6]"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#94A3B8] transition-colors duration-200 hover:text-[#60A5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827] group-focus-within:text-[#60A5FA]"
             aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
+            aria-pressed={showPassword}
+            title={showPassword ? "Ocultar senha" : "Exibir senha"}
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
           </button>
         </div>
         {errors.password ? (

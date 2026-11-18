@@ -1,4 +1,8 @@
-export type PlacementLeadFilters = { language?: string; estimated_level?: string };
+export type PlacementLeadFilters = {
+  language?: string;
+  estimated_level?: string;
+  has_purchased?: "true" | "false" | "";
+};
 
 export const leadStages = [
   { value: "not_contacted", label: "Não contatado", color: "border-t-slate-400" },

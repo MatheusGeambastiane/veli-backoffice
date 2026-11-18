@@ -39,6 +39,7 @@ import {
   useCreateEmployeePayment,
   useEmployeePaymentsEmployees,
   useEmployeePaymentsSummary,
+  useGatewayMetrics,
 } from "@/features/billing/queries/billingQueries";
 import type {
   Bill,
@@ -46,6 +47,7 @@ import type {
   BillRecurrence,
   BillStatus,
   BillingAmountByOffer,
+  BillingGateway,
   BillingSummaryParams,
   CreateEmployeePaymentPayload,
   EmployeePayment,
@@ -645,6 +647,8 @@ function FloatingActionOption({
 }
 
 export function BillingDashboardPage() {
+  const [selectedGateways, setSelectedGateways] = useState<BillingGateway[]>(["abacatepay"]);
+  const [gatewaySyncRequestId, setGatewaySyncRequestId] = useState(0);
   const currentMonth = useMemo(() => getCurrentMonthValue(), []);
   const [month, setMonth] = useState(currentMonth);
   const [startDate, setStartDate] = useState("");
@@ -690,7 +694,7 @@ export function BillingDashboardPage() {
   const createBill = useCreateBill();
   const createEmployeePayment = useCreateEmployeePayment();
   const totals = data?.totals;
-  const gatewayBalance = totals?.gateway_balance;
+  const gatewayMetrics = useGatewayMetrics(selectedGateways, appliedParams, gatewaySyncRequestId);
   const billedByOffer = data?.billed_amount_by_offer ?? [];
   const employeePayments = employeePaymentsData?.employee_payments ?? [];
   const bills = billsData?.results ?? [];
@@ -700,21 +704,57 @@ export function BillingDashboardPage() {
     data?.caixa ??
     (totals?.total_billed_amount ?? 0) - (totals?.total_expenses_amount ?? 0);
 
+  function renderGatewayValues(kind: "balance" | "revenue") {
+    if (!selectedGateways.length) return <span>Selecione um gateway para consultar.</span>;
+
+    return (
+      <span className="block space-y-2">
+        {selectedGateways.map((gateway, index) => {
+          const name = { asaas: "Asaas", stripe: "Stripe", abacatepay: "AbacatePay" }[gateway];
+          const query = gatewayMetrics[index];
+          const metric = query.data?.gateway === gateway ? query.data[kind] : undefined;
+          const syncedAt = metric?.synced_at;
+          const amountLabel =
+            query.isPending || query.isFetching
+              ? "Carregando…"
+              : query.isError || !metric || metric.source === "unavailable"
+                ? "Indisponível"
+                : metric.source === "not_configured"
+                  ? "Não configurado"
+                  : metric.amounts.length === 0
+                    ? kind === "balance"
+                      ? "Sem saldo"
+                      : "Sem faturamento"
+                    : metric.amounts
+                        .map(({ currency, amount }) =>
+                          new Intl.NumberFormat("pt-BR", {
+                            style: "currency",
+                            currency,
+                          }).format(Number(amount)),
+                        )
+                        .join(" · ");
+          return (
+            <span
+              key={gateway}
+              className="flex flex-wrap justify-between gap-x-3 gap-y-1"
+              title={formatGatewaySyncDate(syncedAt) ?? undefined}
+            >
+              <span>{name}</span>
+              <span>{amountLabel}</span>
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
+
   const metrics = [
     {
       title: "Caixa",
       value: formatCurrency(cashAmount),
-      helperLabel: gatewayBalance?.gateway_name
-        ? `Disponível no ${gatewayBalance.gateway_name}`
-        : "Saldo do gateway",
-      helperValue: gatewayBalance?.source === "gateway" && gatewayBalance.amount !== null
-        ? formatCurrencyString(gatewayBalance.amount)
-        : gatewayBalance?.source === "not_configured"
-          ? "Não configurado"
-          : isLoading ? "..." : "Indisponível",
-      helperTooltip: gatewayBalance?.source === "unavailable"
-        ? "Não foi possível consultar o saldo disponível no gateway."
-        : formatGatewaySyncDate(gatewayBalance?.synced_at),
+      helperLabel: "Disponível nos gateways",
+      helperValue: renderGatewayValues("balance"),
+      helperTooltip: null,
       icon: HandCoins,
       cardClass:
         "border-teal-300 bg-card text-teal-950 hover:border-teal-400 [.dark_&]:hover:border-teal-500/25 hover:bg-teal-500/[0.04] [.dark_&]:border-teal-500/20 [.dark_&]:text-teal-50",
@@ -725,15 +765,16 @@ export function BillingDashboardPage() {
     {
       title: "Receita",
       value: formatCurrency(totals?.total_billed_amount),
-      helperLabel: "Disponivel sem taxas",
-      helperValue: formatCurrency(totals?.asaas_amount_gross),
+      helperLabel: "Total faturado por gateway",
+      helperValue: renderGatewayValues("revenue"),
       helperTooltip: null,
       icon: CircleDollarSign,
       cardClass:
         "border-emerald-300 bg-card text-emerald-950 hover:border-emerald-400 [.dark_&]:hover:border-emerald-500/25 hover:bg-emerald-500/[0.04] [.dark_&]:border-emerald-500/20 [.dark_&]:text-emerald-50",
       gradientClass:
         "bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(52,211,153,0.14),transparent_26%)]",
-      iconClass: "bg-emerald-100 text-emerald-800 [.dark_&]:bg-emerald-400/15 [.dark_&]:text-emerald-200",
+      iconClass:
+        "bg-emerald-100 text-emerald-800 [.dark_&]:bg-emerald-400/15 [.dark_&]:text-emerald-200",
     },
     {
       title: "Despesa",
@@ -1023,7 +1064,13 @@ export function BillingDashboardPage() {
             title={metric.title}
             value={isLoading ? "..." : metric.value}
             helperLabel={metric.helperLabel}
-            helperValue={isLoading ? "..." : metric.helperValue}
+            helperValue={
+              metric.title === "Caixa" || metric.title === "Receita"
+                ? metric.helperValue
+                : isLoading
+                  ? "..."
+                  : metric.helperValue
+            }
             helperTooltip={isLoading ? null : metric.helperTooltip}
             icon={<metric.icon className="h-5 w-5" />}
             cardClass={metric.cardClass}
@@ -1034,7 +1081,12 @@ export function BillingDashboardPage() {
       </div>
 
       <div className="grid items-stretch gap-6 2xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.75fr)]">
-        <MonthlyPlanPaymentsChart month={appliedParams.month ?? currentMonth} />
+        <MonthlyPlanPaymentsChart
+          month={appliedParams.month ?? currentMonth}
+          selectedGateways={selectedGateways}
+          onSelectedGatewaysChange={setSelectedGateways}
+          onSync={() => setGatewaySyncRequestId((current) => current + 1)}
+        />
         <LatestReceivedPaymentsList />
       </div>
 
@@ -1823,7 +1875,7 @@ function BillingMetricCard({
   title: string;
   value: string;
   helperLabel: string;
-  helperValue: string;
+  helperValue: ReactNode;
   helperTooltip?: string | null;
   icon: ReactNode;
   cardClass: string;
@@ -1861,7 +1913,9 @@ function BillingMetricCard({
             tabIndex={helperTooltip ? 0 : undefined}
           >
             <p className="text-xs text-slate-700 [.dark_&]:text-white/60">{helperLabel}</p>
-            {helperTooltip && <Info className="h-3.5 w-3.5 text-slate-500 [.dark_&]:text-white/50" />}
+            {helperTooltip && (
+              <Info className="h-3.5 w-3.5 text-slate-500 [.dark_&]:text-white/50" />
+            )}
             {helperTooltip && (
               <span
                 role="tooltip"
@@ -1871,7 +1925,9 @@ function BillingMetricCard({
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm font-semibold text-slate-950 [.dark_&]:text-white">{helperValue}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-950 [.dark_&]:text-white">
+            {helperValue}
+          </p>
         </div>
       </CardContent>
     </Card>

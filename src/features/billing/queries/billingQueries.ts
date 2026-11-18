@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { billingApi } from "@/features/billing/api/billingApi";
 import type {
   BillingSummaryParams,
+  BillingGateway,
   CreateBillPayload,
   CreateEmployeePaymentPayload,
   MonthlyPlanPaymentsParams,
@@ -12,6 +13,8 @@ import type {
 export const billingKeys = {
   all: ["billing"] as const,
   summary: (params: BillingSummaryParams) => [...billingKeys.all, "summary", params] as const,
+  gatewayFinancialStatement: (params: BillingSummaryParams) =>
+    [...billingKeys.all, "gateway-financial-statement", params] as const,
   monthlyPlanPayments: (params: MonthlyPlanPaymentsParams) =>
     [...billingKeys.all, "monthly-plan-payments", params] as const,
   latestReceivedPayments: () => [...billingKeys.all, "latest-received-payments"] as const,
@@ -29,6 +32,23 @@ export const billingKeys = {
   employeesSimple: () => [...billingKeys.employeePayments(), "employees-simple"] as const,
 };
 
+export function useGatewayMetrics(
+  gateways: BillingGateway[],
+  params: BillingSummaryParams,
+  syncRequestId: number,
+) {
+  const { status } = useSession();
+  return useQueries({
+    queries: gateways.map((gateway) => ({
+      queryKey: [...billingKeys.all, "gateway-metrics", gateway, params, syncRequestId],
+      queryFn: () => billingApi.gatewayMetrics(gateway, params, syncRequestId > 0),
+      enabled: status === "authenticated",
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+}
+
 export function useBillingSummary(params: BillingSummaryParams) {
   const { status } = useSession();
 
@@ -37,6 +57,16 @@ export function useBillingSummary(params: BillingSummaryParams) {
     queryFn: () => billingApi.summary(params),
     enabled: status === "authenticated",
     placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useGatewayFinancialStatement(params: BillingSummaryParams, enabled: boolean) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: billingKeys.gatewayFinancialStatement(params),
+    queryFn: () => billingApi.gatewayFinancialStatement(params),
+    enabled: status === "authenticated" && enabled,
   });
 }
 

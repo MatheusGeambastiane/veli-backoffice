@@ -143,6 +143,7 @@ export type OrderBillingSubscription = {
 } | null;
 
 export type OrderDetail = {
+  checkout_url?: string | null;
   id: number;
   user: OrderUser;
   offer: OrderOffer;

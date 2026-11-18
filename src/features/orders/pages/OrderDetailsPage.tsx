@@ -186,6 +186,26 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
       </div>
 
       <OrderHeader order={data} />
+      {data.checkout_url && (
+        <div className="space-y-2 rounded-lg border border-border bg-card p-4">
+          <p className="text-sm font-medium">Link de pagamento</p>
+          <input
+            aria-label="Link de pagamento"
+            className="w-full rounded-md border border-border bg-background p-2 text-sm"
+            readOnly
+            value={data.checkout_url}
+            onFocus={(event) => event.target.select()}
+          />
+          <a
+            href={data.checkout_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-primary underline"
+          >
+            Abrir checkout <ExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <div className="space-y-6">

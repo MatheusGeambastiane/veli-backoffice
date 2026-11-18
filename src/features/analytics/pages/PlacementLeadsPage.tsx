@@ -22,8 +22,9 @@ export function PlacementLeadsPage() {
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState("");
   const [level, setLevel] = useState("");
+  const [purchaseStatus, setPurchaseStatus] = useState<"" | "true" | "false">("");
   const languages = useDashboardLanguages();
-  const filters = { language, estimated_level: level };
+  const filters = { language, estimated_level: level, has_purchased: purchaseStatus };
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
@@ -70,7 +71,15 @@ export function PlacementLeadsPage() {
             {["A1", "A2", "B1", "B2", "C1", "C2"].map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>
-        {language || level ? <Button variant="outline" onClick={() => { setLanguage(""); setLevel(""); setPage(1); }}>Limpar filtros</Button> : null}
+        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm sm:flex-none">
+          Situação da compra
+          <select value={purchaseStatus} onChange={(event) => { setPurchaseStatus(event.target.value as "" | "true" | "false"); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">Todos os leads</option>
+            <option value="true">Já comprou</option>
+            <option value="false">Ainda não comprou</option>
+          </select>
+        </label>
+        {language || level || purchaseStatus ? <Button variant="outline" onClick={() => { setLanguage(""); setLevel(""); setPurchaseStatus(""); setPage(1); }}>Limpar filtros</Button> : null}
       </div>
       {languages.isError ? <p role="alert" className="text-sm text-destructive">Não foi possível carregar os idiomas. <button className="underline" onClick={() => void languages.refetch()}>Tentar novamente</button></p> : null}
       {view === "kanban" ? <LeadKanban search={deferredSearch} filters={filters} onOpen={setSelectedLead} /> : <>
