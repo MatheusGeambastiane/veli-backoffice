@@ -137,6 +137,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [isDaysModalOpen, setIsDaysModalOpen] = useState(false);
   const [classroomLink, setClassroomLink] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [isGeneric, setIsGeneric] = useState(false);
   const [selectedScheduleEventId, setSelectedScheduleEventId] = useState<number | null>(null);
   const [openScheduleEventId, setOpenScheduleEventId] = useState<number | null>(null);
@@ -380,6 +381,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
     setClassTime(data.time ? data.time.slice(0, 5) : "");
     setSelectedDays(normalizeDays(data.days_of_week));
     setClassroomLink(data.classroom_link ?? "");
+    setIsActive(data.is_active);
     setIsGeneric(data.is_generic);
   }
 
@@ -480,7 +482,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
         finish_date: finishDate,
         time: formatTimeForApi(classTime),
         days_of_week: selectedDays,
-        is_active: data.is_active,
+        is_active: isActive,
         is_generic: isGeneric,
         duration: data.duration,
         classroom_link: classroomLink.trim() || null,
@@ -1125,7 +1127,9 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                           ))}
                         </select>
                       ) : (
-                        <p className="text-xl font-semibold text-foreground">{getClassName(data)}</p>
+                        <p className="text-xl font-semibold text-foreground">
+                          {getClassName(data)}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -1176,7 +1180,9 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                 <div className="flex flex-wrap gap-2">
                   <span
                     className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                      data.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      data.is_active
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {data.is_active ? "Turma ativa" : "Turma inativa"}
@@ -1186,7 +1192,7 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                       "w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
                       data.is_generic
                         ? "bg-sky-100 text-sky-800"
-                        : "bg-muted text-muted-foreground"
+                        : "bg-muted text-muted-foreground",
                     )}
                   >
                     {data.is_generic ? "Turma genérica" : "Turma regular"}
@@ -1259,6 +1265,38 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                   )}
                 </div>
                 <div className="rounded-2xl border border-border bg-background px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide">Status</p>
+                  {isEditing ? (
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-foreground">
+                        {isActive ? "Turma ativa" : "Turma inativa"}
+                      </p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-label="Definir turma como ativa"
+                        aria-checked={isActive}
+                        onClick={() => setIsActive((current) => !current)}
+                        className={cn(
+                          "relative inline-flex h-6 w-10 shrink-0 rounded-full border transition-colors",
+                          isActive ? "border-primary bg-primary" : "border-border bg-muted",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform",
+                            isActive ? "translate-x-4" : "translate-x-0.5",
+                          )}
+                        />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-semibold text-foreground">
+                      {data.is_active ? "Ativa" : "Inativa"}
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-border bg-background px-4 py-3">
                   <p className="text-xs uppercase tracking-wide">Genérica</p>
                   {isEditing ? (
                     <div className="mt-2 flex items-center justify-between gap-3">
@@ -1272,13 +1310,13 @@ export function ClassDetailsPage({ classId }: ClassDetailsPageProps) {
                         onClick={() => setIsGeneric((current) => !current)}
                         className={cn(
                           "relative inline-flex h-6 w-10 shrink-0 rounded-full border transition-colors",
-                          isGeneric ? "border-primary bg-primary" : "border-border bg-muted"
+                          isGeneric ? "border-primary bg-primary" : "border-border bg-muted",
                         )}
                       >
                         <span
                           className={cn(
                             "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform",
-                            isGeneric ? "translate-x-4" : "translate-x-0.5"
+                            isGeneric ? "translate-x-4" : "translate-x-0.5",
                           )}
                         />
                       </button>
