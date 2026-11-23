@@ -1,4 +1,4 @@
-import type { LeadStage, PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
+import type { LeadStage, PlacementLeadBulkCampaignPayload, PlacementLeadCommunicationPayload, PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { analyticsApi } from "@/features/analytics/api/analyticsApi";
@@ -74,6 +74,68 @@ export function useUpdatePlacementLead() {
       queryClient.setQueryData(["placement-lead", lead.id], lead);
       return Promise.all([queryClient.invalidateQueries({ queryKey: ["placement-leads"] }), queryClient.invalidateQueries({ queryKey: ["lead-summary"] })]);
     },
+  });
+}
+
+export function usePlacementLeadCommunications(id: number) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["placement-lead", id, "communications"],
+    queryFn: () => analyticsApi.placementLeadCommunications(id),
+    enabled: status === "authenticated",
+    refetchInterval: 5000,
+  });
+}
+
+export function usePlacementLeadWhatsappTemplates(id: number) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["placement-lead", id, "whatsapp-templates"],
+    queryFn: () => analyticsApi.placementLeadWhatsappTemplates(id),
+    enabled: status === "authenticated",
+    staleTime: 60_000,
+  });
+}
+
+export function useSendPlacementLeadCommunication(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PlacementLeadCommunicationPayload) =>
+      analyticsApi.sendPlacementLeadCommunication(id, payload),
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["placement-lead", id] }),
+      queryClient.invalidateQueries({ queryKey: ["placement-leads"] }),
+      queryClient.invalidateQueries({ queryKey: ["lead-summary"] }),
+    ]),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["placement-lead", id, "communications"] }),
+  });
+}
+
+export function useCreatePlacementLeadBulkCampaign() {
+  return useMutation({
+    mutationFn: (payload: PlacementLeadBulkCampaignPayload) =>
+      analyticsApi.createPlacementLeadBulkCampaign(payload),
+  });
+}
+
+export function usePlacementLeadBulkCampaign(id: number | null) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["placement-lead-bulk-campaign", id],
+    queryFn: () => analyticsApi.placementLeadBulkCampaign(id as number),
+    enabled: status === "authenticated" && id !== null,
+    refetchInterval: (query) => {
+      const campaignStatus = query.state.data?.status;
+      return campaignStatus === "completed" || campaignStatus === "canceled" ? false : 2000;
+    },
+  });
+}
+
+export function useCancelPlacementLeadBulkCampaign(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => analyticsApi.cancelPlacementLeadBulkCampaign(id),
+    onSuccess: (campaign) => queryClient.setQueryData(["placement-lead-bulk-campaign", id], campaign),
   });
 }
 

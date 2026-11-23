@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { ArrowLeft, Sparkles, User as UserIcon } from "lucide-react";
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
+import { InstallAppButton } from "@/shared/components/pwa/InstallAppButton";
 import { useSessionUser } from "@/shared/auth/useSessionUser";
 
 type TopbarProps = {
@@ -93,6 +94,7 @@ export function Topbar({ userName, variant = "default" }: TopbarProps) {
         )}
       </div>
       <div className="relative flex items-center gap-3" ref={menuRef}>
+        <InstallAppButton />
         <ThemeToggle />
         <span className="hidden text-sm text-muted-foreground sm:inline">{displayName}</span>
         <button

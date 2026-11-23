@@ -25,7 +25,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { LeadMetricCard } from "@/features/dashboard/components/LeadMetricCard";
+import {
+  LeadMetricCard,
+  MobileLeadInterestCard,
+} from "@/features/dashboard/components/LeadMetricCard";
 import { useDashboardSummary } from "@/features/dashboard/queries/dashboardQueries";
 import { useSessionUser } from "@/shared/auth/useSessionUser";
 import { Button } from "@/shared/components/ui/button";
@@ -271,7 +274,7 @@ export function DashboardPage() {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <h1 className="min-h-10 text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
@@ -279,7 +282,7 @@ export function DashboardPage() {
             <span className="ml-1 inline-block h-7 w-[2px] animate-pulse bg-primary align-[-4px]" />
           </h1>
         </div>
-        <div className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-4 py-2 text-sm text-muted-foreground md:w-auto">
+        <div className="hidden w-full items-center gap-3 rounded-md border border-border bg-card px-4 py-2 text-sm text-muted-foreground md:flex md:w-auto">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
             i
           </span>
@@ -287,8 +290,31 @@ export function DashboardPage() {
         </div>
       </div>
 
+      <div className="space-y-4 md:hidden">
+        <MobileExecutiveSummary
+          isManager={isManager}
+          billedAmount={data?.total_billed_amount ?? 0}
+          activeStudents={data?.total_active_students ?? 0}
+          activeClasses={data?.total_active_classes ?? 0}
+        />
+        {isManager ? (
+          <>
+            <MobileLeadInterestCard
+              activeInterests={data?.total_active_orders ?? 0}
+              pendingInterests={data?.total_pending_orders ?? 0}
+            />
+            <MobileOrdersPanel items={recentOrders} />
+          </>
+        ) : null}
+      </div>
+
       <div
-        className={cn("grid gap-4", isManager ? "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" : "sm:grid-cols-2 xl:grid-cols-3")}
+        className={cn(
+          "hidden gap-4 md:grid",
+          isManager
+            ? "md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
+            : "md:grid-cols-2 xl:grid-cols-3",
+        )}
       >
         <MetricCard
           title="Alunos ativos"
@@ -362,7 +388,7 @@ export function DashboardPage() {
       )}
 
       {isManager && (
-        <div className="grid gap-6 xl:grid-cols-12">
+        <div className="hidden gap-6 md:grid xl:grid-cols-12">
           <ChartPanel title="Faturamento por oferta" badge="Receita" className="xl:col-span-4">
             <VerticalValueBarChart
               items={offerBilling}
@@ -397,12 +423,17 @@ export function DashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-12">
+      <div className="hidden gap-6 md:grid xl:grid-cols-12">
         <div className="grid min-w-0 gap-6 xl:col-span-8 xl:grid-cols-2">
           <div className="min-w-0 rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <h2 id="students-by-active-class-title" className="text-lg font-semibold text-foreground">Alunos por turma ativa</h2>
+                <h2
+                  id="students-by-active-class-title"
+                  className="text-lg font-semibold text-foreground"
+                >
+                  Alunos por turma ativa
+                </h2>
               </div>
               <span className="w-fit rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
                 Distribuição
@@ -425,7 +456,9 @@ export function DashboardPage() {
           <div className="min-w-0 rounded-lg border border-border/80 bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <h2 id="active-classes-title" className="text-lg font-semibold text-foreground">Turmas ativas</h2>
+                <h2 id="active-classes-title" className="text-lg font-semibold text-foreground">
+                  Turmas ativas
+                </h2>
                 <p className="text-sm text-muted-foreground">Resumo das turmas em andamento.</p>
               </div>
               <span className="w-fit rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
@@ -692,6 +725,108 @@ export function DashboardPage() {
   );
 }
 
+function MobileExecutiveSummary({
+  isManager,
+  billedAmount,
+  activeStudents,
+  activeClasses,
+}: {
+  isManager: boolean;
+  billedAmount: number;
+  activeStudents: number;
+  activeClasses: number;
+}) {
+  return (
+    <section
+      aria-labelledby="mobile-overview-title"
+      className="relative isolate overflow-hidden rounded-[1.375rem] border border-blue-400/15 bg-[#071a3d] px-5 py-5 text-white shadow-[0_18px_48px_-30px_rgba(15,78,185,0.8)]"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute -right-16 -top-24 -z-10 h-56 w-56 rounded-full bg-blue-500/25 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -bottom-24 -left-20 -z-10 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl"
+      />
+
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/75">
+            Visão geral
+          </p>
+          <h2 id="mobile-overview-title" className="mt-1 text-base font-semibold text-white">
+            Operação Veli
+          </h2>
+        </div>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-blue-100">
+          <CircleDollarSign aria-hidden="true" className="h-[18px] w-[18px]" />
+        </span>
+      </div>
+
+      {isManager ? (
+        <div className="mt-7">
+          <p className="text-xs font-medium text-blue-100/65">Total faturado</p>
+          <p className="mt-1 text-[2rem] font-semibold leading-tight tabular-nums tracking-[-0.035em] text-white">
+            {formatCurrency(billedAmount)}
+          </p>
+        </div>
+      ) : null}
+
+      <dl
+        className={cn(
+          "grid grid-cols-2 gap-3",
+          isManager ? "mt-6 border-t border-white/10 pt-4" : "mt-7",
+        )}
+      >
+        <div>
+          <dt className="flex items-center gap-2 text-[11px] font-medium text-blue-100/60">
+            <Users aria-hidden="true" className="h-3.5 w-3.5" />
+            Alunos ativos
+          </dt>
+          <dd className="mt-1.5 text-xl font-semibold tabular-nums text-white">{activeStudents}</dd>
+        </div>
+        <div className="border-l border-white/10 pl-4">
+          <dt className="flex items-center gap-2 text-[11px] font-medium text-blue-100/60">
+            <BookOpen aria-hidden="true" className="h-3.5 w-3.5" />
+            Turmas ativas
+          </dt>
+          <dd className="mt-1.5 text-xl font-semibold tabular-nums text-white">{activeClasses}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function MobileOrdersPanel({ items }: { items: OrdersLast3Months[] }) {
+  const totalOrders = items.reduce((total, item) => total + item.total_orders, 0);
+
+  return (
+    <section
+      aria-labelledby="mobile-orders-title"
+      className="rounded-[1.25rem] border border-border/80 bg-card px-4 pb-3 pt-5 shadow-[0_12px_36px_-28px_rgba(15,23,42,0.45)]"
+    >
+      <div className="flex items-start justify-between gap-3 px-1">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            Pedidos
+          </p>
+          <h2 id="mobile-orders-title" className="mt-1 text-base font-semibold text-foreground">
+            Evolução recente
+          </h2>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-semibold tabular-nums text-foreground">{totalOrders}</p>
+          <p className="text-[11px] text-muted-foreground">últimos 3 meses</p>
+        </div>
+      </div>
+      <div className="mt-2 -ml-1">
+        <OrdersBarChart items={items} compact />
+      </div>
+    </section>
+  );
+}
+
 function MetricCard({
   title,
   value,
@@ -948,7 +1083,13 @@ function VerticalValueBarChart<T>({
   );
 }
 
-function OrdersBarChart({ items }: { items: OrdersLast3Months[] }) {
+function OrdersBarChart({
+  items,
+  compact = false,
+}: {
+  items: OrdersLast3Months[];
+  compact?: boolean;
+}) {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const activeTheme = theme === "system" ? systemTheme : theme;
@@ -969,7 +1110,7 @@ function OrdersBarChart({ items }: { items: OrdersLast3Months[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="h-56 w-full">
+      <div className={cn("w-full", compact ? "h-48" : "h-56")}>
         {mounted && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 26, right: 10, left: -18, bottom: 10 }}>
@@ -995,7 +1136,7 @@ function OrdersBarChart({ items }: { items: OrdersLast3Months[] }) {
                   background: "hsl(var(--card))",
                   color: "hsl(var(--foreground))",
                 }}
-                formatter={(value) => [`${String(value ?? 0)} ordens`, "Ordens"]}
+                formatter={(value) => [`${String(value ?? 0)} pedidos`, "Pedidos"]}
                 labelFormatter={(label) => String(label)}
               />
               <Line
@@ -1202,16 +1343,22 @@ function ActiveClassesSummary({
 
 function DashboardSkeleton() {
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-3">
           <div className="h-3 w-24 animate-pulse rounded-full bg-muted" />
           <div className="h-10 w-[320px] max-w-full animate-pulse rounded-2xl bg-muted" />
         </div>
-        <div className="h-12 w-full animate-pulse rounded-2xl bg-muted md:w-64 md:rounded-full" />
+        <div className="hidden h-12 w-full animate-pulse rounded-2xl bg-muted md:block md:w-64 md:rounded-full" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-4 md:hidden">
+        <div className="h-56 animate-pulse rounded-[1.375rem] bg-slate-900" />
+        <div className="h-44 animate-pulse rounded-[1.25rem] border border-border bg-card" />
+        <div className="h-64 animate-pulse rounded-[1.25rem] border border-border bg-card" />
+      </div>
+
+      <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={`metric-${index}`}
@@ -1227,7 +1374,7 @@ function DashboardSkeleton() {
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-12">
+      <div className="hidden gap-6 md:grid xl:grid-cols-12">
         <div className="grid gap-6 xl:col-span-8 xl:grid-cols-2">
           {Array.from({ length: 2 }).map((_, index) => (
             <div
@@ -1263,7 +1410,7 @@ function DashboardSkeleton() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+      <div className="hidden rounded-3xl border border-border bg-card/80 p-5 shadow-sm sm:p-6 md:block">
         <div className="flex items-center justify-between">
           <div className="h-5 w-32 animate-pulse rounded-full bg-muted" />
           <div className="h-6 w-20 animate-pulse rounded-full bg-muted" />

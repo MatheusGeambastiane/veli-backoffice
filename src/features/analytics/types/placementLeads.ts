@@ -2,6 +2,7 @@ export type PlacementLeadFilters = {
   language?: string;
   estimated_level?: string;
   has_purchased?: "true" | "false" | "";
+  status?: "started" | "completed" | "";
 };
 
 export const leadStages = [
@@ -102,6 +103,73 @@ export type PlacementLeadDetail = PlacementLeadSummary & {
   purchases: PlacementPurchase[];
   enrollments: PlacementEnrollment[];
   matched_user: { id: number; name: string; email: string; phone: string } | null;
+};
+
+export type PlacementLeadCommunication = {
+  id: number;
+  direction: "outbound" | "inbound";
+  message_type: "template" | "text" | "interactive";
+  status: "pending" | "processing" | "sent" | "received" | "failed";
+  recipient_phone: string;
+  conversation_id: string;
+  template_name: string;
+  template_language: string;
+  body_text: string;
+  interactive_id: string;
+  interactive_type: string;
+  button_clicked: boolean;
+  requested_by_name: string;
+  occurred_at: string;
+  sent_at: string | null;
+  failed_at: string | null;
+  last_error: string;
+};
+
+export type PlacementLeadCommunicationPayload =
+  | {
+      message_type: "template";
+      template_name: string;
+      template_language: string;
+      template_params: string[];
+    }
+  | { message_type: "text"; message: string };
+
+export type PlacementLeadWhatsappTemplate = {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  preview: string;
+  parameter_count: number;
+  uses_automatic_parameters: boolean;
+};
+
+export type PlacementLeadBulkCampaign = {
+  id: number;
+  status: "scheduled" | "queued" | "processing" | "completed" | "canceled";
+  template_name: string;
+  template_language: string;
+  template_preview: string;
+  scheduled_at: string | null;
+  total_count: number;
+  sent_count: number;
+  failed_count: number;
+  canceled_count: number;
+  processed_count: number;
+  progress_percent: number;
+  can_cancel: boolean;
+  cancel_requested_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+};
+
+export type PlacementLeadBulkCampaignPayload = {
+  lead_ids: number[];
+  template_name: string;
+  template_language: string;
+  template_params: string[];
+  scheduled_at?: string | null;
 };
 
 export type PlacementOption = {

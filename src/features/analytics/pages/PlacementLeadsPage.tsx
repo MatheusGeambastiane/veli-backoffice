@@ -23,8 +23,9 @@ export function PlacementLeadsPage() {
   const [language, setLanguage] = useState("");
   const [level, setLevel] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<"" | "true" | "false">("");
+  const [testStatus, setTestStatus] = useState<"" | "started" | "completed">("");
   const languages = useDashboardLanguages();
-  const filters = { language, estimated_level: level, has_purchased: purchaseStatus };
+  const filters = { language, estimated_level: level, has_purchased: purchaseStatus, status: testStatus };
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
@@ -79,7 +80,15 @@ export function PlacementLeadsPage() {
             <option value="false">Ainda não comprou</option>
           </select>
         </label>
-        {language || level || purchaseStatus ? <Button variant="outline" onClick={() => { setLanguage(""); setLevel(""); setPurchaseStatus(""); setPage(1); }}>Limpar filtros</Button> : null}
+        <label className="flex min-w-48 flex-1 flex-col gap-1.5 text-sm sm:flex-none">
+          Situação do teste
+          <select value={testStatus} onChange={(event) => { setTestStatus(event.target.value as "" | "started" | "completed"); setPage(1); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">Todos os leads</option>
+            <option value="completed">Completou o teste</option>
+            <option value="started">Não completou o teste</option>
+          </select>
+        </label>
+        {language || level || purchaseStatus || testStatus ? <Button variant="outline" onClick={() => { setLanguage(""); setLevel(""); setPurchaseStatus(""); setTestStatus(""); setPage(1); }}>Limpar filtros</Button> : null}
       </div>
       {languages.isError ? <p role="alert" className="text-sm text-destructive">Não foi possível carregar os idiomas. <button className="underline" onClick={() => void languages.refetch()}>Tentar novamente</button></p> : null}
       {view === "kanban" ? <LeadKanban search={deferredSearch} filters={filters} onOpen={setSelectedLead} /> : <>

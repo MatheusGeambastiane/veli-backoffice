@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -23,6 +23,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { useVirtualKeyboard } from "@/shared/hooks/useVirtualKeyboard";
 
 type NavItem = {
   href: string;
@@ -59,7 +60,13 @@ function releasePointerFocus(event: MouseEvent<HTMLAnchorElement>) {
 export function Sidebar() {
   const pathname = usePathname();
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
-  const isAssistantPage = pathname.startsWith("/assistant");
+  const isVirtualKeyboardOpen = useVirtualKeyboard();
+
+  useEffect(() => {
+    if (!isVirtualKeyboardOpen) return;
+    const frame = window.requestAnimationFrame(() => setIsMobileMoreOpen(false));
+    return () => window.cancelAnimationFrame(frame);
+  }, [isVirtualKeyboardOpen]);
 
   return (
     <>
@@ -90,7 +97,10 @@ export function Sidebar() {
         <nav className="flex flex-1 flex-col gap-2">
           {navItems.map((item) => {
             const isActive =
-              item.href === "/" ? pathname === item.href : (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
+              item.href === "/"
+                ? pathname === item.href
+                : pathname.startsWith(item.href) &&
+                  !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"));
             const Icon = item.icon;
 
             return (
@@ -135,7 +145,9 @@ export function Sidebar() {
             </div>
 
             {financialItems.map((item) => {
-              const isActive = (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
+              const isActive =
+                pathname.startsWith(item.href) &&
+                !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"));
               const Icon = item.icon;
 
               return (
@@ -163,7 +175,7 @@ export function Sidebar() {
         </nav>
       </aside>
 
-      {!isAssistantPage && (
+      {!isVirtualKeyboardOpen && (
         <>
           {isMobileMoreOpen ? (
             <div
@@ -171,7 +183,7 @@ export function Sidebar() {
               onClick={() => setIsMobileMoreOpen(false)}
             >
               <div
-                className="absolute inset-x-3 bottom-24 rounded-xl border border-border bg-card p-3 shadow-2xl"
+                className="absolute inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] rounded-xl border border-border bg-card p-3 shadow-2xl"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="mb-2 flex items-center justify-between px-1">
@@ -187,7 +199,9 @@ export function Sidebar() {
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   {mobileMoreItems.map((item) => {
-                    const isActive = (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
+                    const isActive =
+                      pathname.startsWith(item.href) &&
+                      !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"));
                     const Icon = item.icon;
                     return (
                       <Link
@@ -211,11 +225,17 @@ export function Sidebar() {
             </div>
           ) : null}
 
-          <nav className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3 lg:hidden">
+          <nav
+            className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-3 lg:hidden"
+            aria-label="Navegação principal"
+          >
             <div className="grid w-full max-w-[560px] grid-cols-5 items-center rounded-xl border border-border/70 bg-card/95 p-2 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur-xl">
               {mobilePrimaryItems.map((item) => {
                 const isActive =
-                  item.href === "/" ? pathname === item.href : (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")));
+                  item.href === "/"
+                    ? pathname === item.href
+                    : pathname.startsWith(item.href) &&
+                      !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"));
                 const Icon = item.icon;
 
                 return (
@@ -259,7 +279,12 @@ export function Sidebar() {
                 onClick={() => setIsMobileMoreOpen((current) => !current)}
                 className={[
                   "flex min-w-0 flex-col items-center gap-1 px-1 py-1 text-[10px] font-medium transition-colors",
-                  isMobileMoreOpen || mobileMoreItems.some((item) => (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"))))
+                  isMobileMoreOpen ||
+                  mobileMoreItems.some(
+                    (item) =>
+                      pathname.startsWith(item.href) &&
+                      !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")),
+                  )
                     ? "text-foreground"
                     : "text-muted-foreground",
                 ].join(" ")}
@@ -270,7 +295,11 @@ export function Sidebar() {
                   className={[
                     "flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
                     isMobileMoreOpen ||
-                    mobileMoreItems.some((item) => (pathname.startsWith(item.href) && !(item.href === "/analytics" && pathname.startsWith("/analytics/leads"))))
+                    mobileMoreItems.some(
+                      (item) =>
+                        pathname.startsWith(item.href) &&
+                        !(item.href === "/analytics" && pathname.startsWith("/analytics/leads")),
+                    )
                       ? "border-primary/20 bg-primary/10 text-primary"
                       : "border-transparent bg-muted text-muted-foreground",
                   ].join(" ")}

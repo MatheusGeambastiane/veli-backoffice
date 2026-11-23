@@ -1,6 +1,7 @@
 "use client";
 
-import { UserRoundSearch } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, BadgeCheck, UserRoundSearch } from "lucide-react";
 import { useLeadSummary } from "@/features/analytics/queries/analyticsQueries";
 
 const countFormatter = new Intl.NumberFormat("pt-BR");
@@ -56,7 +57,11 @@ export function LeadMetricCard() {
         <div className="col-span-2 flex items-center justify-between gap-3 rounded-md bg-success/10 px-3 py-2">
           <dt className="text-xs text-muted-foreground">Taxa de conversão</dt>
           <dd className="text-sm font-semibold tabular-nums text-success">
-            {isPending ? "..." : summary ? percentFormatter.format(summary.success_rate / 100) : "-"}
+            {isPending
+              ? "..."
+              : summary
+                ? percentFormatter.format(summary.success_rate / 100)
+                : "-"}
           </dd>
         </div>
       </dl>
@@ -75,6 +80,80 @@ export function LeadMetricCard() {
           </button>
         </p>
       ) : null}
+    </section>
+  );
+}
+
+export function MobileLeadInterestCard({
+  activeInterests,
+  pendingInterests,
+}: {
+  activeInterests: number;
+  pendingInterests: number;
+}) {
+  const { data, isPending, isError } = useLeadSummary("");
+  const totalInterests = activeInterests + pendingInterests;
+
+  return (
+    <section
+      aria-labelledby="mobile-commercial-title"
+      className="overflow-hidden rounded-[1.25rem] border border-border/80 bg-card shadow-[0_12px_36px_-28px_rgba(15,23,42,0.45)]"
+    >
+      <div className="flex items-center justify-between px-5 pb-3 pt-5">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            Comercial
+          </p>
+          <h2 id="mobile-commercial-title" className="mt-1 text-base font-semibold text-foreground">
+            Leads e interessados
+          </h2>
+        </div>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <BadgeCheck aria-hidden="true" className="h-[18px] w-[18px]" />
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 divide-x divide-border border-t border-border/70">
+        <Link
+          href="/analytics/leads"
+          className="group min-w-0 px-5 py-5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <span className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+            Leads
+            <UserRoundSearch aria-hidden="true" className="h-4 w-4 text-info" />
+          </span>
+          <strong className="mt-2 block text-[1.75rem] font-semibold leading-none tabular-nums tracking-tight text-foreground">
+            {isPending ? "…" : isError ? "—" : countFormatter.format(data?.total ?? 0)}
+          </strong>
+          <span className="mt-3 block truncate text-[11px] text-muted-foreground">
+            {isPending
+              ? "Atualizando…"
+              : isError
+                ? "Dados indisponíveis"
+                : `${countFormatter.format(data?.stages.not_contacted ?? 0)} aguardando contato`}
+          </span>
+        </Link>
+
+        <Link
+          href="/orders"
+          className="group min-w-0 px-5 py-5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <span className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+            Interessados
+            <ArrowUpRight
+              aria-hidden="true"
+              className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+            />
+          </span>
+          <strong className="mt-2 block text-[1.75rem] font-semibold leading-none tabular-nums tracking-tight text-foreground">
+            {countFormatter.format(totalInterests)}
+          </strong>
+          <span className="mt-3 block truncate text-[11px] text-muted-foreground">
+            {countFormatter.format(activeInterests)} ativos ·{" "}
+            {countFormatter.format(pendingInterests)} pendentes
+          </span>
+        </Link>
+      </div>
     </section>
   );
 }

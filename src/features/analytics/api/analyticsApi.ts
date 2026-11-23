@@ -7,7 +7,12 @@ import type {
   LeadSummary,
   Paginated,
   PlacementLeadDetail,
+  PlacementLeadCommunication,
+  PlacementLeadCommunicationPayload,
+  PlacementLeadBulkCampaign,
+  PlacementLeadBulkCampaignPayload,
   PlacementLeadSummary,
+  PlacementLeadWhatsappTemplate,
   PlacementQuestion,
 } from "@/features/analytics/types/placementLeads";
 
@@ -29,6 +34,7 @@ function leadParams(search: string, filters: PlacementLeadFilters) {
   if (filters.language) params.set("language", filters.language);
   if (filters.estimated_level) params.set("estimated_level", filters.estimated_level);
   if (filters.has_purchased) params.set("has_purchased", filters.has_purchased);
+  if (filters.status) params.set("status", filters.status);
   return params;
 }
 
@@ -46,6 +52,18 @@ export const analyticsApi = {
     httpClient.get<PlacementLeadDetail>(`/dashboard/placement-leads/${id}/`),
   updatePlacementLead: (id: number, payload: { is_contacted?: boolean; observation?: string; stage?: LeadStage }) =>
     httpClient.patch<PlacementLeadDetail>(`/dashboard/placement-leads/${id}/`, payload),
+  placementLeadCommunications: (id: number) =>
+    httpClient.get<PlacementLeadCommunication[]>(`/dashboard/placement-leads/${id}/communications/`),
+  placementLeadWhatsappTemplates: (id: number) =>
+    httpClient.get<PlacementLeadWhatsappTemplate[]>(`/dashboard/placement-leads/${id}/whatsapp-templates/`),
+  sendPlacementLeadCommunication: (id: number, payload: PlacementLeadCommunicationPayload) =>
+    httpClient.post<PlacementLeadCommunication>(`/dashboard/placement-leads/${id}/communications/`, payload),
+  createPlacementLeadBulkCampaign: (payload: PlacementLeadBulkCampaignPayload) =>
+    httpClient.post<PlacementLeadBulkCampaign>("/dashboard/placement-leads/bulk-communications/", payload),
+  placementLeadBulkCampaign: (id: number) =>
+    httpClient.get<PlacementLeadBulkCampaign>(`/dashboard/placement-leads/bulk-communications/${id}/`),
+  cancelPlacementLeadBulkCampaign: (id: number) =>
+    httpClient.post<PlacementLeadBulkCampaign>(`/dashboard/placement-leads/bulk-communications/${id}/cancel/`),
   placementQuestions: (filters: { language?: string; level?: string; skill?: string; page?: number } = {}) => {
     const params = new URLSearchParams({ page_size: "20", page: String(filters.page ?? 1) });
     for (const key of ["language", "level", "skill"] as const) {

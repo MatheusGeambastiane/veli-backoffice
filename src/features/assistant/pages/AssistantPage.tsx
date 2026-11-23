@@ -23,6 +23,7 @@ import {
 import type { AssistantConversation, AssistantMessage } from "@/features/assistant/types/assistant";
 import { HttpError } from "@/shared/lib/http/http";
 import { Topbar } from "@/shared/components/layout/Topbar";
+import { useVirtualKeyboard } from "@/shared/hooks/useVirtualKeyboard";
 
 type SpeechRecognitionInstance = {
   lang: string;
@@ -104,6 +105,7 @@ function Message({ message }: { message: AssistantMessage }) {
 }
 
 export function AssistantPage() {
+  const isVirtualKeyboardOpen = useVirtualKeyboard();
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [pendingMessage, setPendingMessage] = useState("");
@@ -335,7 +337,13 @@ export function AssistantPage() {
   const visibleError = sendMessage.error ?? createConversation.error ?? messages.error;
 
   return (
-    <div className="flex h-dvh min-w-0 flex-col bg-background" data-assistant-page>
+    <div
+      className={[
+        "flex h-dvh min-w-0 flex-col bg-background lg:pb-0",
+        isVirtualKeyboardOpen ? "pb-0" : "pb-[calc(5.75rem+env(safe-area-inset-bottom))]",
+      ].join(" ")}
+      data-assistant-page
+    >
       <Topbar variant="assistant" />
       <section className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-card">
         <aside

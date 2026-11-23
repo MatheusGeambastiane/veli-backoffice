@@ -19,6 +19,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { usePlacementLead, useUpdatePlacementLead } from "@/features/analytics/queries/analyticsQueries";
 import type { PlacementLeadDetail } from "@/features/analytics/types/placementLeads";
+import { LeadCommunicationTab } from "@/features/analytics/components/LeadCommunicationTab";
 
 import { leadStages, type LeadStage } from "@/features/analytics/types/placementLeads";
 
@@ -32,6 +33,7 @@ function LeadDetailContent({ lead, onClose }: { lead: PlacementLeadDetail; onClo
   const [stage, setStage] = useState<LeadStage>(lead.stage);
   const [observation, setObservation] = useState(lead.observation);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<"details" | "communication">("communication");
   const updateLead = useUpdatePlacementLead();
 
   async function copyPhone() {
@@ -61,9 +63,14 @@ function LeadDetailContent({ lead, onClose }: { lead: PlacementLeadDetail; onClo
           </div>
           <Button type="button" variant="ghost" onClick={onClose} aria-label="Fechar detalhes" className="size-10 px-0"><X className="size-5" /></Button>
         </div>
+        <div className="mt-5 flex gap-1 border-b border-border" role="tablist" aria-label="Informações do lead">
+          <button type="button" role="tab" aria-selected={activeTab === "details"} onClick={() => setActiveTab("details")} className={`border-b-2 px-4 py-2 text-sm font-medium transition ${activeTab === "details" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>Detalhes</button>
+          <button type="button" role="tab" aria-selected={activeTab === "communication"} onClick={() => setActiveTab("communication")} className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition ${activeTab === "communication" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}><MessageCircleMore className="size-4" />Comunicação</button>
+        </div>
       </header>
 
       <div className="flex-1 space-y-6 overflow-y-auto px-5 py-6 sm:px-7">
+        {activeTab === "communication" ? <LeadCommunicationTab leadId={lead.id} phone={lead.phone} /> : <>
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Último nível</p><p className="mt-2 text-2xl font-semibold">{lead.estimated_level || "—"}</p><p className="mt-1 text-xs text-muted-foreground">{lead.language_name}</p></div>
           <div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Aquisição</p><p className="mt-2 truncate text-base font-semibold">{lead.utm_source || "Direto"}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(lead.started_at)}</p></div>
@@ -130,6 +137,7 @@ function LeadDetailContent({ lead, onClose }: { lead: PlacementLeadDetail; onClo
             <div className="mt-4 space-y-3">{lead.enrollments.length ? lead.enrollments.map((enrollment) => <div key={enrollment.id} className="rounded-lg bg-muted/40 p-3"><p className="font-medium">{enrollment.course}</p><p className="mt-1 text-xs text-muted-foreground">{enrollment.language} {enrollment.level ? `· ${enrollment.level}` : ""} · {enrollment.status}</p><p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Clock3 className="size-3.5" />{new Date(`${enrollment.class_start}T12:00:00`).toLocaleDateString("pt-BR")} a {new Date(`${enrollment.class_finish}T12:00:00`).toLocaleDateString("pt-BR")}</p></div>) : <p className="text-sm text-muted-foreground">Nenhuma matrícula encontrada.</p>}</div>
           </div>
         </section>
+        </>}
       </div>
     </div>
   );
