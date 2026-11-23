@@ -7,6 +7,7 @@ import type {
   DashboardMyProfileUpdatePayload,
   DashboardStudentProfileUpdatePayload,
   DashboardTeacherProfileUpdatePayload,
+  DashboardUserCommunicationPayload,
 } from "@/features/users/types/dashboardUserDetails";
 
 export const usersKeys = {
@@ -17,6 +18,10 @@ export const usersKeys = {
   dashboardList: (params: DashboardUsersParams) => [...usersKeys.dashboard(), params] as const,
   dashboardDetails: () => [...usersKeys.dashboard(), "detail"] as const,
   dashboardDetail: (id: string) => [...usersKeys.dashboardDetails(), id] as const,
+  dashboardCommunications: (id: string) =>
+    [...usersKeys.dashboardDetail(id), "communications"] as const,
+  dashboardWhatsappTemplates: (id: string) =>
+    [...usersKeys.dashboardDetail(id), "whatsapp-templates"] as const,
   myProfile: () => [...usersKeys.dashboard(), "me"] as const,
   details: () => [...usersKeys.all, "detail"] as const,
   detail: (id: string) => [...usersKeys.details(), id] as const,
@@ -50,6 +55,41 @@ export function useDashboardUserById(id: string) {
     queryKey: usersKeys.dashboardDetail(id),
     queryFn: () => usersApi.getDashboardById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useDashboardUserCommunications(id: string, enabled = true) {
+  return useQuery({
+    queryKey: usersKeys.dashboardCommunications(id),
+    queryFn: () => usersApi.listDashboardUserCommunications(id),
+    enabled: Boolean(id) && enabled,
+    refetchInterval: (query) =>
+      query.state.data?.some((communication) =>
+        communication.status === "pending" || communication.status === "processing"
+      )
+        ? 3000
+        : false,
+  });
+}
+
+export function useDashboardUserWhatsappTemplates(id: string, enabled = true) {
+  return useQuery({
+    queryKey: usersKeys.dashboardWhatsappTemplates(id),
+    queryFn: () => usersApi.listDashboardUserWhatsappTemplates(id),
+    enabled: Boolean(id) && enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useSendDashboardUserCommunication(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: DashboardUserCommunicationPayload) =>
+      usersApi.sendDashboardUserCommunication(id, payload),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: usersKeys.dashboardCommunications(id) });
+    },
   });
 }
 

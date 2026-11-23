@@ -113,3 +113,36 @@ export type DashboardResetPasswordResponse = {
   detail: string;
   user_id: number;
 };
+
+export type DashboardUserCommunication = {
+  id: number;
+  message_type: "template" | "text";
+  template_name: string;
+  recipient_phone: string;
+  subject: string;
+  body_text: string;
+  status: "pending" | "processing" | "sent" | "failed";
+  created_at: string;
+  sent_at: string | null;
+  failed_at: string | null;
+  last_error: string;
+};
+
+export type DashboardUserCommunicationPayload =
+  | {
+      message_type: "template";
+      template_name: string;
+      template_language: string;
+      template_params: string[];
+    }
+  | { message_type: "text"; message: string };
+
+export type DashboardWhatsappTemplate = {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  preview: string;
+  parameter_count: number;
+  uses_automatic_parameters: boolean;
+};

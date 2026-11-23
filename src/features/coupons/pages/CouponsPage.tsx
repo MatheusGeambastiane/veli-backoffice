@@ -1,21 +1,23 @@
 "use client";
 
 import { useDeferredValue, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Check, Loader2, Plus, Search, TicketPercent, X } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Search, TicketPercent, X } from "lucide-react";
 import {
   useCouponOffers,
   useCoupons,
   useCreateCoupon,
   useToggleCoupon,
+  useUpdateCoupon,
 } from "@/features/coupons/queries/couponsQueries";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { DataSurface, PageHeader, PageStat } from "@/shared/components/ui/page";
+import type { Coupon, CouponPayload } from "@/features/coupons/types/coupon";
 
 const initialForm = {
   code: "",
-  offer: "",
+  offers: [] as number[],
   maxUsage: "1",
   discountType: "percent" as "fixed" | "percent",
   discountValue: "",
@@ -25,10 +27,22 @@ const initialForm = {
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+function localDateTime(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function couponOfferIds(coupon: Coupon) {
+  return coupon.offers ?? (coupon.offer ? [coupon.offer] : []);
+}
+
 export function CouponsPage() {
   const createDialog = useRef<HTMLDialogElement>(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(initialForm);
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [offerSearch, setOfferSearch] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(
     null,
   );
@@ -37,31 +51,89 @@ export function CouponsPage() {
   const offers = useCouponOffers();
   const createCoupon = useCreateCoupon();
   const toggleCoupon = useToggleCoupon();
+  const updateCoupon = useUpdateCoupon();
+  const isSaving = createCoupon.isPending || updateCoupon.isPending;
+  const availableOffers = new Map(
+    (offers.data?.results ?? []).map((offer) => [offer.id, { id: offer.id, name: offer.name }]),
+  );
+  // Preserve selected offers even if they are absent from the options response.
+  if (editingCoupon) {
+    couponOfferIds(editingCoupon).forEach((id, index) => {
+      if (!availableOffers.has(id)) {
+        availableOffers.set(id, {
+          id,
+          name: editingCoupon.offer_names?.[index] ?? editingCoupon.offer_name ?? `Oferta #${id}`,
+        });
+      }
+    });
+  }
+  const visibleOffers = [...availableOffers.values()].filter((offer) =>
+    offer.name.toLocaleLowerCase("pt-BR").includes(offerSearch.trim().toLocaleLowerCase("pt-BR")),
+  );
+
+  function openEdit(coupon: Coupon) {
+    setEditingCoupon(coupon);
+    setFeedback(null);
+    setOfferSearch("");
+    setForm({
+      code: coupon.code,
+      offers: [...couponOfferIds(coupon)],
+      maxUsage: String(coupon.max_usage),
+      discountType: coupon.discount_type,
+      discountValue: coupon.discount_value,
+      startsAt: localDateTime(coupon.starts_at),
+      endsAt: localDateTime(coupon.ends_at),
+    });
+    createDialog.current?.showModal();
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.offer || !form.code.trim() || !form.discountValue || Number(form.maxUsage) < 1) {
+    if (isSaving) return;
+    if (form.offers.length === 0) {
+      setFeedback({ kind: "error", message: "Selecione pelo menos uma oferta." });
+      return;
+    }
+    if (!form.code.trim() || !form.discountValue || Number(form.maxUsage) < 1) {
       setFeedback({ kind: "error", message: "Preencha os campos obrigatórios do cupom." });
       return;
     }
     try {
-      await createCoupon.mutateAsync({
+      const payload: CouponPayload = {
         code: form.code.trim().toUpperCase(),
-        offer: Number(form.offer),
+        offers: form.offers,
         max_usage: Number(form.maxUsage),
         discount_type: form.discountType,
         discount_value: form.discountValue,
-        is_active: true,
-        starts_at: form.startsAt ? new Date(form.startsAt).toISOString() : null,
-        ends_at: form.endsAt ? new Date(form.endsAt).toISOString() : null,
-      });
+        is_active: editingCoupon?.is_active ?? true,
+        starts_at:
+          editingCoupon && form.startsAt === localDateTime(editingCoupon.starts_at)
+            ? editingCoupon.starts_at
+            : form.startsAt
+              ? new Date(form.startsAt).toISOString()
+              : null,
+        ends_at:
+          editingCoupon && form.endsAt === localDateTime(editingCoupon.ends_at)
+            ? editingCoupon.ends_at
+            : form.endsAt
+              ? new Date(form.endsAt).toISOString()
+              : null,
+      };
+      if (editingCoupon) {
+        await updateCoupon.mutateAsync({ id: editingCoupon.id, payload });
+      } else {
+        await createCoupon.mutateAsync(payload);
+      }
       setForm(initialForm);
-      setFeedback({ kind: "success", message: "Cupom criado com sucesso." });
+      setFeedback({
+        kind: "success",
+        message: editingCoupon ? "Cupom atualizado com sucesso." : "Cupom criado com sucesso.",
+      });
       createDialog.current?.close();
     } catch {
       setFeedback({
         kind: "error",
-        message: "Não foi possível criar o cupom. Revise os dados informados.",
+        message: "Não foi possível salvar o cupom. Revise os dados informados.",
       });
     }
   }
@@ -79,6 +151,9 @@ export function CouponsPage() {
             <Button
               onClick={() => {
                 setFeedback(null);
+                setEditingCoupon(null);
+                setForm(initialForm);
+                setOfferSearch("");
                 createDialog.current?.showModal();
               }}
             >
@@ -100,10 +175,12 @@ export function CouponsPage() {
         aria-labelledby="create-coupon-title"
         aria-describedby="create-coupon-description"
         onCancel={(event) => {
-          if (createCoupon.isPending) event.preventDefault();
+          if (isSaving) event.preventDefault();
         }}
         onClose={() => {
           setForm(initialForm);
+          setEditingCoupon(null);
+          setOfferSearch("");
           setFeedback((current) => (current?.kind === "error" ? null : current));
         }}
         className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 text-foreground shadow-xl backdrop:bg-black/50 sm:p-6"
@@ -115,10 +192,10 @@ export function CouponsPage() {
             </span>
             <div>
               <h2 id="create-coupon-title" className="font-semibold">
-                Adicionar cupom
+                {editingCoupon ? "Editar cupom" : "Adicionar cupom"}
               </h2>
               <p id="create-coupon-description" className="text-xs text-muted-foreground">
-                Defina a oferta e a regra do desconto.
+                Selecione uma ou mais ofertas e defina a regra do desconto.
               </p>
             </div>
             <Button
@@ -126,7 +203,7 @@ export function CouponsPage() {
               variant="ghost"
               className="ml-auto shrink-0"
               aria-label="Fechar"
-              disabled={createCoupon.isPending}
+              disabled={isSaving}
               onClick={() => createDialog.current?.close()}
             >
               <X className="size-4" />
@@ -141,21 +218,58 @@ export function CouponsPage() {
               required
             />
           </Field>
-          <Field label="Oferta">
-            <select
-              value={form.offer}
-              onChange={(e) => setForm({ ...form, offer: e.target.value })}
-              required
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Selecione uma oferta</option>
-              {(offers.data?.results ?? []).map((offer) => (
-                <option key={offer.id} value={offer.id}>
+          <fieldset className="space-y-2" disabled={isSaving}>
+            <legend className="text-sm font-medium">Ofertas</legend>
+            <Input
+              aria-label="Buscar ofertas"
+              placeholder="Buscar ofertas"
+              value={offerSearch}
+              onChange={(event) => setOfferSearch(event.target.value)}
+            />
+            <div className="max-h-48 overflow-y-auto rounded-md border border-input p-2">
+              {offers.isPending ? (
+                <p role="status" className="p-2 text-sm">
+                  Carregando ofertas...
+                </p>
+              ) : null}
+              {offers.isError ? (
+                <div role="alert" className="p-2 text-sm text-destructive">
+                  Não foi possível carregar as ofertas.
+                  <Button type="button" variant="ghost" onClick={() => offers.refetch()}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : null}
+              {visibleOffers.map((offer) => (
+                <label
+                  key={offer.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-md p-2 text-sm hover:bg-muted"
+                >
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={form.offers.includes(offer.id)}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setForm((current) => ({
+                        ...current,
+                        offers: checked
+                          ? [...current.offers, offer.id]
+                          : current.offers.filter((id) => id !== offer.id),
+                      }));
+                    }}
+                  />
                   {offer.name}
-                </option>
+                </label>
               ))}
-            </select>
-          </Field>
+              {!offers.isPending && !offers.isError && visibleOffers.length === 0 ? (
+                <p className="p-2 text-sm text-muted-foreground">Nenhuma oferta encontrada.</p>
+              ) : null}
+            </div>
+            <p aria-live="polite" className="text-xs text-muted-foreground">
+              {form.offers.length} selecionada(s). Selecione pelo menos uma oferta.
+            </p>
+          </fieldset>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tipo">
               <select
@@ -184,7 +298,7 @@ export function CouponsPage() {
           <Field label="Quantidade de usos">
             <Input
               type="number"
-              min="1"
+              min={Math.max(1, editingCoupon?.used_count ?? 0)}
               value={form.maxUsage}
               onChange={(e) => setForm({ ...form, maxUsage: e.target.value })}
               required
@@ -210,18 +324,18 @@ export function CouponsPage() {
             <Button
               type="button"
               variant="outline"
-              disabled={createCoupon.isPending}
+              disabled={isSaving}
               onClick={() => createDialog.current?.close()}
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={createCoupon.isPending}>
-              {createCoupon.isPending ? (
+            <Button type="submit" disabled={isSaving || offers.isPending || offers.isError}>
+              {isSaving ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <TicketPercent className="size-4" />
               )}{" "}
-              Criar cupom
+              {editingCoupon ? "Salvar alterações" : "Criar cupom"}
             </Button>
           </div>
           {feedback?.kind === "error" ? (
@@ -248,10 +362,10 @@ export function CouponsPage() {
         <DataSurface>
           <div className="hidden grid-cols-[1fr_1.4fr_.8fr_.8fr_auto] gap-4 border-b bg-muted/20 px-6 py-3 text-xs text-muted-foreground md:grid">
             <span>Código</span>
-            <span>Oferta</span>
+            <span>Ofertas</span>
             <span>Desconto</span>
             <span>Utilização</span>
-            <span>Status</span>
+            <span>Ações</span>
           </div>
           {coupons.isLoading ? (
             <div className="p-8 text-sm text-muted-foreground">Carregando cupons...</div>
@@ -280,7 +394,11 @@ export function CouponsPage() {
                       {coupon.code}
                     </span>
                   </div>
-                  <p className="text-sm font-medium">{coupon.offer_name}</p>
+                  <p className="text-sm font-medium">
+                    {(coupon.offer_names ?? (coupon.offer_name ? [coupon.offer_name] : [])).join(
+                      ", ",
+                    ) || "Sem ofertas"}
+                  </p>
                   <p className="text-sm">
                     {coupon.discount_type === "percent"
                       ? `${Number(coupon.discount_value)}%`
@@ -300,24 +418,37 @@ export function CouponsPage() {
                       />
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={coupon.is_active ? "outline" : "secondary"}
-                    disabled={toggleCoupon.isPending}
-                    onClick={() =>
-                      toggleCoupon.mutate({ id: coupon.id, is_active: !coupon.is_active })
-                    }
-                  >
-                    {coupon.is_active ? (
-                      <>
-                        <Check className="size-3.5" />
-                        Ativo
-                      </>
-                    ) : (
-                      "Inativo"
-                    )}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isSaving || toggleCoupon.isPending}
+                      onClick={() => openEdit(coupon)}
+                      aria-label={`Editar cupom ${coupon.code}`}
+                    >
+                      <Pencil className="size-3.5" />
+                      Editar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={coupon.is_active ? "outline" : "secondary"}
+                      disabled={toggleCoupon.isPending || isSaving}
+                      onClick={() =>
+                        toggleCoupon.mutate({ id: coupon.id, is_active: !coupon.is_active })
+                      }
+                    >
+                      {coupon.is_active ? (
+                        <>
+                          <Check className="size-3.5" />
+                          Ativo
+                        </>
+                      ) : (
+                        "Inativo"
+                      )}
+                    </Button>
+                  </div>
                 </li>
               );
             })}

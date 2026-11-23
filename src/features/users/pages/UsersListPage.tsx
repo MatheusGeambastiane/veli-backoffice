@@ -13,6 +13,7 @@ import type {
 } from "@/features/users/types/dashboardUser";
 import { Input } from "@/shared/components/ui/input";
 import { DataSurface, PageHeader, PageStat, PageToolbar } from "@/shared/components/ui/page";
+import { resolveApiMediaUrl } from "@/shared/lib/mediaUrl";
 
 const PAGE_SIZE_OPTIONS = [20, 30, 50, 100] as const;
 const USERS_GRID_COLUMNS =
@@ -390,8 +391,18 @@ function UsersRow({ user }: { user: DashboardUser }) {
 }
 
 function Avatar({ src, name }: { src: string | null; name: string }) {
-  if (src) {
-    return <img src={src} alt={name} className="h-12 w-12 rounded-md object-cover" />;
+  const resolvedSrc = resolveApiMediaUrl(src);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (resolvedSrc && failedSrc !== resolvedSrc) {
+    return (
+      <img
+        src={resolvedSrc}
+        alt={name}
+        className="h-12 w-12 rounded-md object-cover"
+        onError={() => setFailedSrc(resolvedSrc)}
+      />
+    );
   }
 
   const initial = name.charAt(0).toUpperCase();

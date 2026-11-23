@@ -34,6 +34,8 @@ import {
 } from "@/features/users/queries/usersQueries";
 import type { DashboardUserDetails } from "@/features/users/types/dashboardUserDetails";
 import { TeacherProfileTab } from "@/features/users/components/TeacherProfileTab";
+import { CommunicationTab } from "@/features/users/components/CommunicationTab";
+import { resolveApiMediaUrl } from "@/shared/lib/mediaUrl";
 
 type UserDetailsPageProps = {
   userId: string;
@@ -163,9 +165,9 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const resetPassword = useResetDashboardUserPassword(userId);
   const patchTeacherProfile = usePatchTeacherProfile(userId);
   const patchStudentProfile = usePatchStudentProfile(userId);
-  const [activeTab, setActiveTab] = useState<"personal" | "profile" | "teacher" | "system">(
-    "personal",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "personal" | "profile" | "teacher" | "communication" | "system"
+  >("personal");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -444,13 +446,21 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
                 Perfil de professor
               </TabButton>
             )}
+            {canManageSystem && (
+              <TabButton
+                isActive={activeTab === "communication"}
+                onClick={() => setActiveTab("communication")}
+              >
+                Comunicação
+              </TabButton>
+            )}
             {isEditing && canManageSystem && (
               <TabButton isActive={activeTab === "system"} onClick={() => setActiveTab("system")}>
                 Sistema
               </TabButton>
             )}
           </div>
-          {activeTab !== "teacher" && (
+          {activeTab !== "teacher" && activeTab !== "communication" && (
             <button
               type="button"
               onClick={() => {
@@ -486,6 +496,8 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
               userId={String(data.id)}
               profile={data.teacher_profile}
             />
+          ) : activeTab === "communication" && canManageSystem ? (
+            <CommunicationTab userId={String(data.id)} phone={data.phone} />
           ) : activeTab === "profile" ? (
             <ProfileTab
               data={data}
@@ -524,7 +536,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
           </p>
         )}
 
-        {isEditing && activeTab !== "teacher" && (
+        {isEditing && activeTab !== "teacher" && activeTab !== "communication" && (
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
               <X className="h-4 w-4" />
@@ -1102,7 +1114,10 @@ function ProfileAvatar({
   isEditable?: boolean;
   onClick?: () => void;
 }) {
-  if (src) {
+  const resolvedSrc = resolveApiMediaUrl(src);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (resolvedSrc && failedSrc !== resolvedSrc) {
     return (
       <button
         type="button"
@@ -1116,7 +1131,12 @@ function ProfileAvatar({
         ].join(" ")}
         aria-label={isEditable ? "Alterar foto de perfil" : "Foto de perfil"}
       >
-        <img src={src} alt={name} className="h-full w-full object-cover" />
+        <img
+          src={resolvedSrc}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={() => setFailedSrc(resolvedSrc)}
+        />
       </button>
     );
   }

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { LoginForm } from "@/features/auth/components/LoginForm";
+import veliLogo from "../../../../public/veli_simbolo_fundo_positivo.png";
 
 export function LoginPage() {
   return (
@@ -8,12 +9,12 @@ export function LoginPage() {
       <div className="flex items-center gap-3">
         <div className="relative h-14 w-14 overflow-hidden rounded-lg bg-[#0B1120] ring-1 ring-white/10">
           <Image
-            src="/Veli_simbolo fundo azul escuro.png"
+            src={veliLogo}
             alt="Veli"
             fill
             className="object-cover"
             sizes="64px"
-            priority
+            preload
           />
         </div>
       </div>

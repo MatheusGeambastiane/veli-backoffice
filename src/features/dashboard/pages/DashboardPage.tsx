@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   BadgeCheck,
   BookOpen,
@@ -1096,9 +1097,10 @@ function ActiveClassesPieChart({
 
       <div className="space-y-3">
         {segments.map((segment) => (
-          <div
+          <Link
             key={segment.student_class_id}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background px-3 py-2"
+            href={`/classes/${segment.student_class_id}`}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background px-3 py-2 transition-colors hover:border-primary/40 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex min-w-0 items-center gap-3">
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
@@ -1110,7 +1112,7 @@ function ActiveClassesPieChart({
               <p className="text-sm font-semibold text-foreground">{segment.students_count}</p>
               <p className="text-[11px] text-muted-foreground">{segment.percentage}%</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

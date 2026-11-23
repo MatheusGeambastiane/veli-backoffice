@@ -1,8 +1,10 @@
 export type Coupon = {
   id: number;
   code: string;
-  offer: number;
-  offer_name: string;
+  offers: number[];
+  offer_names: string[];
+  offer?: number | null;
+  offer_name?: string | null;
   max_usage: number;
   used_count: number;
   discount_type: "fixed" | "percent";
@@ -23,7 +25,7 @@ export type CouponListResponse = {
 
 export type CouponPayload = {
   code: string;
-  offer: number;
+  offers: number[];
   max_usage: number;
   discount_type: "fixed" | "percent";
   discount_value: string;

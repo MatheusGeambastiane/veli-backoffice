@@ -20,7 +20,19 @@ export function useCouponOffers() {
   const { status } = useSession();
   return useQuery({
     queryKey: [...couponsKey, "offers"],
-    queryFn: () => offersApi.list({ pageSize: 100 }),
+    queryFn: async () => {
+      const first = await offersApi.list({ pageSize: 100 });
+      const results = [...first.results];
+      let next = first.next;
+      let page = 2;
+      while (next) {
+        const response = await offersApi.list({ pageSize: 100, page });
+        results.push(...response.results);
+        next = response.next;
+        page += 1;
+      }
+      return { ...first, results, next: null };
+    },
     enabled: status === "authenticated",
   });
 }
@@ -38,6 +50,15 @@ export function useToggleCoupon() {
   return useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
       couponsApi.update(id, { is_active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: couponsKey }),
+  });
+}
+
+export function useUpdateCoupon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<CouponPayload> }) =>
+      couponsApi.update(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: couponsKey }),
   });
 }

@@ -13,7 +13,10 @@ import type {
   DashboardStudentProfileUpdatePayload,
   DashboardTeacherProfileUpdatePayload,
   DashboardTeacherProfile,
+  DashboardUserCommunication,
+  DashboardUserCommunicationPayload,
   DashboardUserDetails,
+  DashboardWhatsappTemplate,
 } from "@/features/users/types/dashboardUserDetails";
 
 export const usersApi = {
@@ -52,6 +55,12 @@ export const usersApi = {
     httpClient.patch<DashboardUserDetails>(`/dashboard/users/${id}/`, payload),
   resetDashboardUserPassword: (id: string) =>
     httpClient.post<DashboardResetPasswordResponse>(`/dashboard/users/${id}/reset-password/`),
+  listDashboardUserCommunications: (id: string) =>
+    httpClient.get<DashboardUserCommunication[]>(`/dashboard/users/${id}/communications/`),
+  listDashboardUserWhatsappTemplates: (id: string) =>
+    httpClient.get<DashboardWhatsappTemplate[]>(`/dashboard/users/${id}/whatsapp-templates/`),
+  sendDashboardUserCommunication: (id: string, payload: DashboardUserCommunicationPayload) =>
+    httpClient.post<DashboardUserCommunication>(`/dashboard/users/${id}/communications/`, payload),
   resetMyPassword: (payload: { new_password: string }) =>
     httpClient.post<DashboardResetPasswordResponse>("/dashboard/auth/reset-password/", payload),
   updateMe: (payload: DashboardMyProfileUpdatePayload) =>
