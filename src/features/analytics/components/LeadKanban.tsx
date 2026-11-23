@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { GripVertical, Loader2, Send, X } from "lucide-react";
-import { useLeadColumn, useUpdatePlacementLead } from "@/features/analytics/queries/analyticsQueries";
+import { useRef, useState } from "react";
+import { Clock, GripVertical, History, Loader2, Send, X } from "lucide-react";
+import { useLeadColumn, usePlacementLeadBulkCampaigns, useUpdatePlacementLead } from "@/features/analytics/queries/analyticsQueries";
 import { leadStages, type LeadStage, type PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
 import { Button } from "@/shared/components/ui/button";
 import { LeadBulkCommunicationModal, LeadBulkCommunicationProgress } from "@/features/analytics/components/LeadBulkCommunication";
@@ -52,7 +52,11 @@ export function LeadKanban({ search, filters, onOpen }: { search: string; filter
   const [notice, setNotice] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [activeCampaignId, setActiveCampaignId] = useState<number | null>(null);
+  const historyDialog = useRef<HTMLDialogElement>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const campaigns = usePlacementLeadBulkCampaigns();
+  const activeCampaigns = campaigns.data?.filter((campaign) => campaign.status === "processing") ?? [];
+  const hasScheduledCampaigns = campaigns.data?.some((campaign) => campaign.status === "scheduled") ?? false;
   function move(id: number, stage: LeadStage) {
     setNotice("");
     mutation.mutate({ id, stage }, { onSuccess: () => setNotice(`Lead movido para ${leadStages.find((item) => item.value === stage)?.label}.`) });
@@ -64,11 +68,55 @@ export function LeadKanban({ search, filters, onOpen }: { search: string; filter
     setSelectedIds((current) => { const next = new Set(current); const shouldSelect = ids.some((id) => !next.has(id)); for (const id of ids) { if (shouldSelect) next.add(id); else next.delete(id); } return next; });
   }
   return <div className="space-y-3">
-    <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Arraste os cartões entre as etapas ou selecione leads para uma comunicação em lote.</p>{selectedIds.size ? <div className="flex items-center gap-2"><span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span><Button size="sm" onClick={() => setIsBulkModalOpen(true)}><Send className="size-4" />Enviar comunicação</Button><Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} aria-label="Limpar seleção"><X className="size-4" /></Button></div> : null}</div>
-    {activeCampaignId !== null ? <LeadBulkCommunicationProgress campaignId={activeCampaignId} onDismiss={() => setActiveCampaignId(null)} /> : null}
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-muted-foreground">Arraste os cartões entre as etapas ou selecione leads para uma comunicação em lote.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {selectedIds.size > 0 ? <span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span> : null}
+        <Button size="sm" onClick={() => {
+          if (selectedIds.size === 0) {
+            setNotice("Selecione pelo menos um lead para enviar uma comunicação.");
+            return;
+          }
+          setNotice("");
+          setIsBulkModalOpen(true);
+        }}><Send className="size-4" />Enviar comunicação</Button>
+        <Button size="sm" variant="outline" aria-haspopup="dialog" onClick={() => {
+          setIsHistoryOpen(true);
+          historyDialog.current?.showModal();
+        }}>
+          <History aria-hidden="true" className="size-4" />
+          Ver disparos feitos
+          {hasScheduledCampaigns ? <span className="inline-flex text-amber-600" title="Há disparos agendados"><Clock aria-hidden="true" className="size-4" /><span className="sr-only">Há disparos agendados</span></span> : null}
+        </Button>
+        {selectedIds.size > 0 ? <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} aria-label="Limpar seleção"><X className="size-4" /></Button> : null}
+      </div>
+    </div>
+    {campaigns.isError ? <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Não foi possível recuperar os disparos em andamento.</p> : null}
+    {activeCampaigns.map((campaign) => <LeadBulkCommunicationProgress key={campaign.id} campaignId={campaign.id} onlyProcessing />)}
+    <dialog
+      ref={historyDialog}
+      aria-labelledby="lead-campaign-history-title"
+      onClose={() => setIsHistoryOpen(false)}
+      className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-2xl border border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-slate-950/45"
+    >
+      <header className="flex items-start justify-between gap-4 border-b border-border p-5">
+        <div>
+          <h2 id="lead-campaign-history-title" className="text-lg font-semibold">Disparos de comunicação</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Acompanhe os envios concluídos, em andamento, na fila, agendados e cancelados.</p>
+        </div>
+        <Button type="button" variant="ghost" className="size-9 shrink-0 px-0" onClick={() => historyDialog.current?.close()} aria-label="Fechar histórico de disparos"><X className="size-4" /></Button>
+      </header>
+      {isHistoryOpen ? <div className="space-y-3 p-5">
+        {campaigns.isPending ? <p role="status" className="text-sm text-muted-foreground">Carregando disparos…</p> : null}
+        {campaigns.isError ? <div role="alert" className="space-y-2 text-sm text-destructive"><p>Não foi possível carregar os disparos.</p><Button type="button" variant="outline" onClick={() => void campaigns.refetch()}>Tentar novamente</Button></div> : null}
+        {!campaigns.isPending && !campaigns.isError && campaigns.data?.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum disparo registrado.</p> : null}
+        {campaigns.data?.map((campaign) => <LeadBulkCommunicationProgress key={campaign.id} campaignId={campaign.id} />)}
+      </div> : null}
+      <footer className="flex justify-end border-t border-border p-5"><Button type="button" variant="outline" onClick={() => historyDialog.current?.close()}>Fechar</Button></footer>
+    </dialog>
     <div role="status" aria-live="polite" className="text-sm">{mutation.isPending ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Salvando etapa…</span> : notice}</div>
     {mutation.isError ? <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Não foi possível mover o lead. A etapa anterior foi mantida. Tente novamente.</p> : null}
     <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">{leadStages.map((stage) => <LeadColumn key={stage.value} stage={stage} search={search} filters={filters} busy={mutation.isPending} onOpen={onOpen} onMove={move} selectedIds={selectedIds} onToggle={toggle} onToggleMany={toggleMany} />)}</div>
-    {isBulkModalOpen ? <LeadBulkCommunicationModal leadIds={[...selectedIds]} onClose={() => setIsBulkModalOpen(false)} onCreated={(campaignId) => { setActiveCampaignId(campaignId); setIsBulkModalOpen(false); setSelectedIds(new Set()); }} /> : null}
+    {isBulkModalOpen ? <LeadBulkCommunicationModal leadIds={[...selectedIds]} onClose={() => setIsBulkModalOpen(false)} onCreated={() => { setIsBulkModalOpen(false); setSelectedIds(new Set()); }} /> : null}
   </div>;
 }

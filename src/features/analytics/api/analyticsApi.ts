@@ -60,6 +60,8 @@ export const analyticsApi = {
     httpClient.post<PlacementLeadCommunication>(`/dashboard/placement-leads/${id}/communications/`, payload),
   createPlacementLeadBulkCampaign: (payload: PlacementLeadBulkCampaignPayload) =>
     httpClient.post<PlacementLeadBulkCampaign>("/dashboard/placement-leads/bulk-communications/", payload),
+  placementLeadBulkCampaigns: () =>
+    httpClient.get<PlacementLeadBulkCampaign[]>("/dashboard/placement-leads/bulk-communications/"),
   placementLeadBulkCampaign: (id: number) =>
     httpClient.get<PlacementLeadBulkCampaign>(`/dashboard/placement-leads/bulk-communications/${id}/`),
   cancelPlacementLeadBulkCampaign: (id: number) =>

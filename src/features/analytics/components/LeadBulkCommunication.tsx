@@ -87,17 +87,20 @@ export function LeadBulkCommunicationModal({
   </div>;
 }
 
-export function LeadBulkCommunicationProgress({ campaignId, onDismiss }: { campaignId: number; onDismiss: () => void }) {
+export function LeadBulkCommunicationProgress({ campaignId, onDismiss, onlyProcessing = false }: { campaignId: number; onDismiss?: () => void; onlyProcessing?: boolean }) {
   const campaign = usePlacementLeadBulkCampaign(campaignId);
   const cancel = useCancelPlacementLeadBulkCampaign(campaignId);
   const data = campaign.data;
+  if (onlyProcessing && data?.status !== "processing") return null;
+  if (campaign.isError) return <div role="alert" className="rounded-xl border border-destructive/20 p-4 text-sm text-destructive">Não foi possível carregar este disparo. <Button type="button" variant="ghost" onClick={() => void campaign.refetch()}>Tentar novamente</Button></div>;
   if (!data) return <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Carregando status do envio…</div>;
   const finished = data.status === "completed" || data.status === "canceled";
   return <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm" aria-live="polite">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><div className="flex items-center gap-2">{finished ? <CheckCircle2 className="size-5 text-emerald-600" /> : <Loader2 className="size-5 animate-spin text-primary" />}<h3 className="font-semibold">{data.status === "scheduled" ? "Envio agendado" : data.status === "canceled" ? "Envio cancelado" : data.status === "completed" ? "Envio concluído" : "Enviando comunicações"}</h3></div><p className="mt-1 text-sm text-muted-foreground">{data.sent_count} enviados de {data.total_count} · {data.failed_count} falharam{data.canceled_count ? ` · ${data.canceled_count} cancelados` : ""}</p>{data.scheduled_at ? <p className="mt-1 text-xs text-muted-foreground">Agendado para {new Date(data.scheduled_at).toLocaleString("pt-BR")}</p> : null}</div>
-      <div className="flex gap-2">{data.can_cancel ? <Button variant="outline" size="sm" disabled={cancel.isPending} onClick={() => void cancel.mutateAsync()}><Ban className="size-4" />Cancelar restantes</Button> : null}{finished ? <Button variant="ghost" size="sm" onClick={onDismiss}>Fechar</Button> : null}</div>
+      <div><div className="flex items-center gap-2">{data.status === "scheduled" ? <CalendarClock className="size-5 text-amber-600" /> : data.status === "canceled" ? <Ban className="size-5 text-muted-foreground" /> : finished ? <CheckCircle2 className="size-5 text-emerald-600" /> : <Loader2 className="size-5 animate-spin text-primary" />}<h3 className="font-semibold">{data.status === "scheduled" ? "Envio agendado" : data.status === "queued" ? "Envio na fila" : data.status === "canceled" ? "Envio cancelado" : data.status === "completed" ? "Envio concluído" : "Enviando comunicações"}</h3></div><p className="mt-1 text-xs text-muted-foreground">{data.template_name} · {new Date(data.created_at).toLocaleString("pt-BR")}</p><p className="mt-1 text-sm text-muted-foreground">{data.sent_count} enviados de {data.total_count} · {data.failed_count} falharam{data.canceled_count ? ` · ${data.canceled_count} cancelados` : ""}</p>{data.scheduled_at ? <p className="mt-1 text-xs text-muted-foreground">Agendado para {new Date(data.scheduled_at).toLocaleString("pt-BR")}</p> : null}</div>
+      <div className="flex gap-2">{data.can_cancel ? <Button variant="outline" size="sm" disabled={cancel.isPending} onClick={() => cancel.mutate()}><Ban className="size-4" />Cancelar restantes</Button> : null}{finished && onDismiss ? <Button variant="ghost" size="sm" onClick={onDismiss}>Fechar</Button> : null}</div>
     </div>
+    {cancel.isError ? <p role="alert" className="mt-3 text-sm text-destructive">Não foi possível cancelar o disparo. Tente novamente.</p> : null}
     <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${data.progress_percent}%` }} /></div>
   </section>;
 }

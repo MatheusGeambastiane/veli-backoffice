@@ -1,4 +1,4 @@
-import type { LeadStage, PlacementLeadBulkCampaignPayload, PlacementLeadCommunicationPayload, PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
+import type { LeadStage, PlacementLeadBulkCampaign, PlacementLeadBulkCampaignPayload, PlacementLeadCommunicationPayload, PlacementLeadFilters } from "@/features/analytics/types/placementLeads";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { analyticsApi } from "@/features/analytics/api/analyticsApi";
@@ -112,9 +112,26 @@ export function useSendPlacementLeadCommunication(id: number) {
 }
 
 export function useCreatePlacementLeadBulkCampaign() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: PlacementLeadBulkCampaignPayload) =>
       analyticsApi.createPlacementLeadBulkCampaign(payload),
+    onSuccess: (campaign) => {
+      queryClient.setQueryData<PlacementLeadBulkCampaign[]>(
+        ["placement-lead-bulk-campaigns"],
+        (current = []) => [campaign, ...current.filter((item) => item.id !== campaign.id)],
+      );
+    },
+  });
+}
+
+export function usePlacementLeadBulkCampaigns() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["placement-lead-bulk-campaigns"],
+    queryFn: analyticsApi.placementLeadBulkCampaigns,
+    enabled: status === "authenticated",
+    refetchInterval: 5000,
   });
 }
 
@@ -135,7 +152,13 @@ export function useCancelPlacementLeadBulkCampaign(id: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => analyticsApi.cancelPlacementLeadBulkCampaign(id),
-    onSuccess: (campaign) => queryClient.setQueryData(["placement-lead-bulk-campaign", id], campaign),
+    onSuccess: (campaign) => {
+      queryClient.setQueryData(["placement-lead-bulk-campaign", id], campaign);
+      queryClient.setQueryData<PlacementLeadBulkCampaign[]>(
+        ["placement-lead-bulk-campaigns"],
+        (current = []) => current.map((item) => item.id === campaign.id ? campaign : item),
+      );
+    },
   });
 }
 
