@@ -1,4 +1,4 @@
-const CACHE_NAME = "veli-pwa-v1";
+const CACHE_NAME = "veli-pwa-v2";
 const OFFLINE_URL = "/offline";
 const APP_ASSETS = [
   OFFLINE_URL,
@@ -30,7 +30,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).catch(() => caches.match(OFFLINE_URL)),
+    );
     return;
   }
 

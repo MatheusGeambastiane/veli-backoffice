@@ -16,6 +16,7 @@ import type {
   DashboardUserCommunication,
   DashboardUserCommunicationPayload,
   DashboardUserDetails,
+  DashboardUserLanguage,
   DashboardWhatsappTemplate,
 } from "@/features/users/types/dashboardUserDetails";
 
@@ -50,6 +51,8 @@ export const usersApi = {
     return httpClient.get<DashboardUsersResponse>(path);
   },
   getDashboardById: (id: string) => httpClient.get<DashboardUserDetails>(`/dashboard/users/${id}/`),
+  listLanguagesWithFreshMediaUrls: () =>
+    httpClient.get<DashboardUserLanguage[]>("/languages/simple/", { cache: "no-store" }),
   getMe: () => httpClient.get<DashboardUserDetails>("/dashboard/users/me/"),
   updateDashboardUser: (id: string, payload: FormData) =>
     httpClient.patch<DashboardUserDetails>(`/dashboard/users/${id}/`, payload),

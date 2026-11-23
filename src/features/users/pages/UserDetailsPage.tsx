@@ -35,6 +35,7 @@ import {
 import type { DashboardUserDetails } from "@/features/users/types/dashboardUserDetails";
 import { TeacherProfileTab } from "@/features/users/components/TeacherProfileTab";
 import { CommunicationTab } from "@/features/users/components/CommunicationTab";
+import { usersApi } from "@/features/users/api/usersApi";
 import { resolveApiMediaUrl } from "@/shared/lib/mediaUrl";
 
 type UserDetailsPageProps = {
@@ -160,7 +161,8 @@ function normalizeRoleCode(role?: string | null) {
 
 export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const { user: authenticatedUser } = useSessionUser();
-  const { data, isLoading, isError } = useDashboardUserById(userId);
+  const [isEditing, setIsEditing] = useState(false);
+  const { data, isLoading, isError } = useDashboardUserById(userId, !isEditing);
   const updateUser = useUpdateDashboardUser(userId);
   const resetPassword = useResetDashboardUserPassword(userId);
   const patchTeacherProfile = usePatchTeacherProfile(userId);
@@ -168,7 +170,6 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const [activeTab, setActiveTab] = useState<
     "personal" | "profile" | "teacher" | "communication" | "system"
   >("personal");
-  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasCopiedPassword, setHasCopiedPassword] = useState(false);
@@ -421,7 +422,12 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
         <div className="flex flex-wrap items-center gap-2">
           {data.languages?.length ? (
             data.languages.map((language) => (
-              <LanguageIcon key={language.id} src={language.lang_icon} label={language.name} />
+              <LanguageIcon
+                key={language.id}
+                languageId={language.id}
+                src={language.lang_icon}
+                label={language.name}
+              />
             ))
           ) : (
             <span className="text-xs text-muted-foreground">Sem idiomas em destaque</span>
@@ -1160,8 +1166,27 @@ function ProfileAvatar({
   );
 }
 
-function LanguageIcon({ src, label }: { src: string | null; label: string }) {
-  if (!src) {
+type LanguageIconRecovery = {
+  originalSrc: string;
+  refreshedSrc: string | null;
+  isRefreshing: boolean;
+  attempted: boolean;
+};
+
+function LanguageIcon({
+  languageId,
+  src,
+  label,
+}: {
+  languageId: number;
+  src: string | null;
+  label: string;
+}) {
+  const [recovery, setRecovery] = useState<LanguageIconRecovery | null>(null);
+  const currentRecovery = recovery?.originalSrc === src ? recovery : null;
+  const displayedSrc = currentRecovery?.refreshedSrc ?? src;
+
+  if (!displayedSrc) {
     return (
       <span className="rounded-full border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground">
         {label}
@@ -1169,12 +1194,42 @@ function LanguageIcon({ src, label }: { src: string | null; label: string }) {
     );
   }
 
+  async function renewSignedUrl() {
+    if (!src || currentRecovery?.isRefreshing || currentRecovery?.attempted) return;
+
+    setRecovery({
+      originalSrc: src,
+      refreshedSrc: null,
+      isRefreshing: true,
+      attempted: true,
+    });
+
+    try {
+      const languages = await usersApi.listLanguagesWithFreshMediaUrls();
+      const refreshedSrc = languages.find((language) => language.id === languageId)?.lang_icon;
+      setRecovery({
+        originalSrc: src,
+        refreshedSrc: refreshedSrc || null,
+        isRefreshing: false,
+        attempted: true,
+      });
+    } catch {
+      setRecovery({
+        originalSrc: src,
+        refreshedSrc: null,
+        isRefreshing: false,
+        attempted: true,
+      });
+    }
+  }
+
   return (
     <img
-      src={src}
+      src={displayedSrc}
       alt={label}
       title={label}
       className="h-10 w-10 rounded-full border border-border object-cover"
+      onError={() => void renewSignedUrl()}
     />
   );
 }

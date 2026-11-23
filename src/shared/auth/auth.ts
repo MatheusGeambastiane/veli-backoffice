@@ -50,6 +50,7 @@ async function refreshAccessToken(token: JWT) {
       accessToken,
       refreshToken: data.refresh ?? token.refreshToken,
       accessTokenExpires: payload.exp ? payload.exp * 1000 : undefined,
+      profilePicUrl: data.profile_pic_url ?? token.profilePicUrl,
     };
   } catch {
     return { ...token, error: "RefreshAccessTokenError" };

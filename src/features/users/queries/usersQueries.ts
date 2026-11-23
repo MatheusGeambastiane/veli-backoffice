@@ -50,11 +50,15 @@ export function useUserById(id: string) {
   });
 }
 
-export function useDashboardUserById(id: string) {
+export function useDashboardUserById(id: string, refreshMedia = true) {
   return useQuery({
     queryKey: usersKeys.dashboardDetail(id),
     queryFn: () => usersApi.getDashboardById(id),
     enabled: Boolean(id),
+    staleTime: 45 * 60 * 1000,
+    refetchInterval: refreshMedia ? 45 * 60 * 1000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: refreshMedia,
   });
 }
 
@@ -97,6 +101,9 @@ export function useMyProfile() {
   return useQuery({
     queryKey: usersKeys.myProfile(),
     queryFn: usersApi.getMe,
+    staleTime: 45 * 60 * 1000,
+    refetchInterval: 45 * 60 * 1000,
+    refetchIntervalInBackground: false,
   });
 }
 

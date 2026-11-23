@@ -8,6 +8,7 @@ import { ArrowLeft, Sparkles, User as UserIcon } from "lucide-react";
 import { ThemeToggle } from "@/shared/components/theme/ThemeToggle";
 import { InstallAppButton } from "@/shared/components/pwa/InstallAppButton";
 import { useSessionUser } from "@/shared/auth/useSessionUser";
+import { useMyProfile } from "@/features/users/queries/usersQueries";
 
 type TopbarProps = {
   userName?: string | null;
@@ -18,10 +19,12 @@ export function Topbar({ userName, variant = "default" }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useSessionUser();
+  const { data: profile } = useMyProfile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [failedProfilePicUrl, setFailedProfilePicUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const displayName = useMemo(() => user?.name ?? userName ?? "Usuário", [user?.name, userName]);
-  const profilePicUrl = user?.image ?? null;
+  const profilePicUrl = profile?.profile_pic ?? user?.image ?? null;
   const isAssistant = variant === "assistant";
   const lessonModuleMatch = pathname.match(/^\/courses\/modules\/([^/]+)\/lessons\/[^/]+/);
   const lessonModuleHref = lessonModuleMatch ? `/courses/modules/${lessonModuleMatch[1]}` : null;
@@ -105,9 +108,14 @@ export function Topbar({ userName, variant = "default" }: TopbarProps) {
           aria-expanded={isMenuOpen}
           aria-label="Abrir menu do usuário"
         >
-          {profilePicUrl ? (
+          {profilePicUrl && profilePicUrl !== failedProfilePicUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={profilePicUrl} alt={displayName} className="h-full w-full object-cover" />
+            <img
+              src={profilePicUrl}
+              alt={displayName}
+              className="h-full w-full object-cover"
+              onError={() => setFailedProfilePicUrl(profilePicUrl)}
+            />
           ) : (
             <UserIcon className="h-5 w-5" />
           )}
