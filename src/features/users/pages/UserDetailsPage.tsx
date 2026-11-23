@@ -12,14 +12,18 @@ import {
 import {
   Check,
   Copy,
+  ExternalLink,
+  GraduationCap,
   KeyRound,
   MapPin,
+  PackageOpen,
   Pencil,
   RotateCcw,
   ShieldCheck,
   UserRound,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useSessionUser } from "@/shared/auth/useSessionUser";
 import { HttpError } from "@/shared/lib/http/http";
 import { Input } from "@/shared/components/ui/input";
@@ -168,7 +172,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
   const patchTeacherProfile = usePatchTeacherProfile(userId);
   const patchStudentProfile = usePatchStudentProfile(userId);
   const [activeTab, setActiveTab] = useState<
-    "personal" | "profile" | "teacher" | "communication" | "system"
+    "personal" | "profile" | "orders" | "teacher" | "communication" | "system"
   >("personal");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -447,6 +451,13 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
                 {profileTabLabel}
               </TabButton>
             )}
+            {(data.role === "student" ||
+              (data.orders?.length ?? 0) > 0 ||
+              (data.subscriptions?.length ?? 0) > 0) && (
+              <TabButton isActive={activeTab === "orders"} onClick={() => setActiveTab("orders")}>
+                Pedidos e matrículas
+              </TabButton>
+            )}
             {canManageSystem && (
               <TabButton isActive={activeTab === "teacher"} onClick={() => setActiveTab("teacher")}>
                 Perfil de professor
@@ -466,7 +477,7 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
               </TabButton>
             )}
           </div>
-          {activeTab !== "teacher" && activeTab !== "communication" && (
+          {activeTab !== "teacher" && activeTab !== "communication" && activeTab !== "orders" && (
             <button
               type="button"
               onClick={() => {
@@ -504,6 +515,8 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
             />
           ) : activeTab === "communication" && canManageSystem ? (
             <CommunicationTab userId={String(data.id)} phone={data.phone} />
+          ) : activeTab === "orders" ? (
+            <OrdersAndSubscriptionsTab data={data} />
           ) : activeTab === "profile" ? (
             <ProfileTab
               data={data}
@@ -537,27 +550,168 @@ export function UserDetailsPage({ userId }: UserDetailsPageProps) {
         </div>
 
         {saveError && (
-          <p role="alert" className="mx-6 mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="mx-6 mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
             {saveError}
           </p>
         )}
 
-        {isEditing && activeTab !== "teacher" && activeTab !== "communication" && (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
-              <X className="h-4 w-4" />
-              Cancelar
-            </Button>
-            {activeTab !== "system" && (
-              <Button type="button" onClick={handleSave} disabled={isSaving}>
-                <Check className="h-4 w-4" />
-                {isSaving ? "Salvando..." : "Salvar alteracoes"}
+        {isEditing &&
+          activeTab !== "teacher" &&
+          activeTab !== "communication" &&
+          activeTab !== "orders" && (
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
+              <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
+                <X className="h-4 w-4" />
+                Cancelar
               </Button>
-            )}
-          </div>
-        )}
+              {activeTab !== "system" && (
+                <Button type="button" onClick={handleSave} disabled={isSaving}>
+                  <Check className="h-4 w-4" />
+                  {isSaving ? "Salvando..." : "Salvar alteracoes"}
+                </Button>
+              )}
+            </div>
+          )}
       </fieldset>
     </section>
+  );
+}
+
+const DAY_LABELS: Record<string, string> = {
+  Mon: "Seg",
+  Tue: "Ter",
+  Wed: "Qua",
+  Thu: "Qui",
+  Fri: "Sex",
+  Sat: "Sáb",
+  Sun: "Dom",
+};
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("pt-BR");
+}
+
+function OrdersAndSubscriptionsTab({ data }: { data: DashboardUserDetails }) {
+  const orders = data.orders ?? [];
+  const subscriptions = data.subscriptions ?? [];
+
+  return (
+    <div className="grid gap-8 xl:grid-cols-2">
+      <section className="space-y-4" aria-labelledby="user-orders-title">
+        <div className="flex items-center gap-2">
+          <PackageOpen className="h-4 w-4 text-primary" />
+          <h2 id="user-orders-title" className="text-base font-semibold text-foreground">
+            Pedidos
+          </h2>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+            {orders.length}
+          </span>
+        </div>
+
+        {orders.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+            Nenhum pedido encontrado para este usuário.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {orders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/orders/${order.id}`}
+                className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-accent/40"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    Pedido #{order.id} · {order.offer_name}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Criado em {formatDateTime(order.created_at)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {order.status_display}
+                  </span>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4" aria-labelledby="user-subscriptions-title">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="h-4 w-4 text-primary" />
+          <h2 id="user-subscriptions-title" className="text-base font-semibold text-foreground">
+            Matrículas e turmas
+          </h2>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+            {subscriptions.length}
+          </span>
+        </div>
+
+        {subscriptions.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+            Nenhuma matrícula encontrada para este usuário.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {subscriptions.map((subscription) => {
+              const studentClass = subscription.student_class;
+              const days = studentClass.days_of_week
+                .map((day) => DAY_LABELS[day] ?? day)
+                .join(", ");
+
+              return (
+                <article
+                  key={subscription.id}
+                  className="rounded-2xl border border-border bg-background p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {studentClass.course_name}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{studentClass.name}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                      {subscription.status_display}
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
+                    <div>
+                      <dt className="text-muted-foreground">Período</dt>
+                      <dd className="mt-1 font-medium text-foreground">
+                        {formatDate(studentClass.start_date)} a{" "}
+                        {formatDate(studentClass.finish_date)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Horário</dt>
+                      <dd className="mt-1 font-medium text-foreground">
+                        {days || "-"} · {studentClass.time.slice(0, 5)}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -786,15 +940,21 @@ function normalizeUserSaveError(error: unknown) {
   const fallback = "Não foi possível salvar as alterações. Tente novamente.";
   if (!(error instanceof HttpError)) return fallback;
   const labels: Record<string, string> = {
-    profile_pic: "Foto", date_of_birth: "Data de nascimento", cpf: "CPF",
-    username: "Nome de usuário", email: "Email", gender: "Gênero", role: "Perfil",
+    profile_pic: "Foto",
+    date_of_birth: "Data de nascimento",
+    cpf: "CPF",
+    username: "Nome de usuário",
+    email: "Email",
+    gender: "Gênero",
+    role: "Perfil",
   };
   function messages(value: unknown): string[] {
     if (typeof value === "string") return [value];
     if (Array.isArray(value)) return value.flatMap(messages);
     if (value && typeof value === "object") {
       return Object.entries(value).flatMap(([key, detail]) =>
-        messages(detail).map((message) => labels[key] ? `${labels[key]}: ${message}` : message));
+        messages(detail).map((message) => (labels[key] ? `${labels[key]}: ${message}` : message)),
+      );
     }
     return [];
   }

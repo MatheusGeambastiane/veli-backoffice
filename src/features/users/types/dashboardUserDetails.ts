@@ -45,6 +45,36 @@ export type DashboardUserAddress = {
   country: string | null;
 };
 
+export type DashboardUserOrder = {
+  id: number;
+  offer: number;
+  offer_name: string;
+  status: string;
+  status_display: string;
+  checkout_status: string;
+  created_at: string;
+};
+
+export type DashboardUserStudentClass = {
+  id: number;
+  name: string;
+  course: number;
+  course_name: string;
+  start_date: string;
+  finish_date: string;
+  time: string;
+  days_of_week: string[];
+  is_active: boolean;
+};
+
+export type DashboardUserSubscription = {
+  id: number;
+  status: string;
+  status_display: string;
+  student_class: DashboardUserStudentClass;
+  created_at: string;
+};
+
 export type DashboardUserDetails = {
   id: number;
   username: string;
@@ -61,6 +91,8 @@ export type DashboardUserDetails = {
   address?: DashboardUserAddress | null;
   student_profile: DashboardStudentProfile | null;
   teacher_profile: DashboardTeacherProfile | null;
+  orders?: DashboardUserOrder[];
+  subscriptions?: DashboardUserSubscription[];
 };
 
 export type DashboardUserUpdatePayload = {
