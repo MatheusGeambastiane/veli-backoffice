@@ -60,9 +60,12 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
   const [offerSearch, setOfferSearch] = useState("");
   const [offerId, setOfferId] = useState("");
   const [optionId, setOptionId] = useState("");
+  const [includeMonthly, setIncludeMonthly] = useState(false);
   const [search, setSearch] = useState("");
   const [user, setUser] = useState<DashboardUser | null>(null);
   const [gateway, setGateway] = useState("");
+  const [checkoutSource, setCheckoutSource] = useState<"new" | "external">("new");
+  const [externalCheckoutId, setExternalCheckoutId] = useState("");
   const [discounted, setDiscounted] = useState(false);
   const [amount, setAmount] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
@@ -89,15 +92,21 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
       (item) => item.type === "one_time" && item.is_active !== false,
     ) ?? [];
   const option = options.find((item) => String(item.id) === optionId);
+  const monthlyOption = offer.data?.recurring_start_month && gateways.data?.includes("abacatepay")
+    ? offer.data.billing_options.find((item) => item.type === "recurring" && item.is_active !== false
+        && item.billing_method === "credit_card")
+    : undefined;
   const original = Number(option?.price ?? 0);
   const finalAmount = discounted ? Number(amount) : original;
   const valid = Boolean(
     user &&
     option &&
     gateway &&
+    (!includeMonthly || (monthlyOption && gateway === "abacatepay")) &&
     finalAmount > 0 &&
     finalAmount <= original &&
-    offer.data?.is_active,
+    offer.data?.is_active &&
+    (checkoutSource === "new" || /^bill_[A-Za-z0-9_-]+$/.test(externalCheckoutId.trim())),
   );
   const create = useMutation({
     mutationFn: ordersApi.createCheckout,
@@ -156,8 +165,14 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
         <div className="space-y-4 rounded-lg border border-border bg-card p-6" role="status">
           <h2 className="text-lg font-semibold">Pedido #{create.data.order_id} criado</h2>
           <p className="text-sm text-muted-foreground">
-            Aguardando pagamento de {money(finalAmount)} via{" "}
-            {gateway === "stripe" ? "Stripe" : "AbacatePay"}. Compartilhe o link com o aluno.
+            {checkoutSource === "external" ? (
+              <>O link foi associado e conciliado com o AbacatePay.</>
+            ) : (
+              <>
+                Aguardando pagamento de {money(finalAmount)} via{" "}
+                {gateway === "stripe" ? "Stripe" : "AbacatePay"}. Compartilhe o link com o aluno.
+              </>
+            )}
           </p>
           <Input
             aria-label="Link de pagamento"
@@ -201,10 +216,76 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
               billing_option: Number(optionId),
               amount_due: finalAmount.toFixed(2),
               gateway_choice: gateway,
+              enrollment_recurring_option: includeMonthly ? monthlyOption?.id : undefined,
+              external_checkout_id:
+                checkoutSource === "external" ? externalCheckoutId.trim() : undefined,
             });
           }}
         >
           <fieldset disabled={submitted} className="space-y-5 disabled:opacity-70">
+            <div className="space-y-3">
+              <span className="text-sm font-medium">Link de pagamento</span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex cursor-pointer gap-3 rounded-lg border border-border bg-background p-4">
+                  <input
+                    type="radio"
+                    name="checkout-source"
+                    value="new"
+                    checked={checkoutSource === "new"}
+                    onChange={() => {
+                      setCheckoutSource("new");
+                      setExternalCheckoutId("");
+                    }}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">Gerar novo link</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      O sistema cria o checkout no gateway selecionado.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer gap-3 rounded-lg border border-border bg-background p-4">
+                  <input
+                    type="radio"
+                    name="checkout-source"
+                    value="external"
+                    checked={checkoutSource === "external"}
+                    onChange={() => {
+                      setCheckoutSource("external");
+                      setGateway("abacatepay");
+                    }}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">Associar link existente</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Vincula um checkout já criado no AbacatePay.
+                    </span>
+                  </span>
+                </label>
+              </div>
+              {checkoutSource === "external" && (
+                <div className="space-y-2">
+                  <label htmlFor="external-checkout-id" className="text-sm font-medium">
+                    ID do checkout AbacatePay
+                  </label>
+                  <Input
+                    id="external-checkout-id"
+                    type="text"
+                    required
+                    value={externalCheckoutId}
+                    onChange={(event) => setExternalCheckoutId(event.target.value)}
+                    placeholder="bill_..."
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Informe o ID iniciado por bill_. O link, o valor e o status serão consultados
+                    diretamente no AbacatePay.
+                  </p>
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
               <label htmlFor="offer-search" className="text-sm font-medium">
                 Buscar oferta
@@ -259,6 +340,7 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
                 value={optionId}
                 onChange={(event) => {
                   setOptionId(event.target.value);
+                  setIncludeMonthly(false);
                   setDiscounted(false);
                   setAmount("");
                 }}
@@ -270,8 +352,20 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
                   </option>
                 ))}
               </select>
+              {monthlyOption && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={includeMonthly}
+                    onChange={(event) => {
+                      setIncludeMonthly(event.target.checked);
+                      if (event.target.checked) setGateway("abacatepay");
+                    }} />
+                  Primeira mensalidade avulsa + 11 mensalidades no cartão de {money(Number(monthlyOption.price))}
+                </label>
+              )}
               <p className="text-xs text-muted-foreground">
-                Cobrança única, sem renovação automática.
+                {includeMonthly
+                  ? "A primeira mensalidade pode ser paga por Pix ou cartão. Após o pagamento, o aluno autoriza no cartão as cobranças seguintes."
+                  : "Cobrança única, sem renovação automática."}
               </p>
               {offer.data && !options.length && (
                 <p className="text-sm text-destructive">
@@ -384,6 +478,7 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
                 className={selectClass}
                 value={gateway}
                 onChange={(event) => setGateway(event.target.value)}
+                disabled={checkoutSource === "external"}
               >
                 <option value="">Selecione o gateway</option>
                 {gateways.data?.map((item) => (
@@ -392,6 +487,11 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
                   </option>
                 ))}
               </select>
+              {checkoutSource === "external" && (
+                <p className="text-xs text-muted-foreground">
+                  Links externos são conciliados pelo AbacatePay.
+                </p>
+              )}
               {gateways.isError && (
                 <p role="alert" className="text-sm text-destructive">
                   Erro ao carregar gateways.
@@ -413,10 +513,14 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
           )}
           <Button type="submit" disabled={!valid || create.isPending}>
             {create.isPending
-              ? "Gerando link…"
+              ? checkoutSource === "external"
+                ? "Associando link…"
+                : "Gerando link…"
               : submitted
                 ? "Tentar obter o link novamente"
-                : "Criar pedido e gerar link"}
+                : checkoutSource === "external"
+                  ? "Criar pedido e associar link"
+                  : "Criar pedido e gerar link"}
           </Button>
         </form>
       )}

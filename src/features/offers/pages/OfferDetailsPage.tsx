@@ -68,6 +68,7 @@ type OfferEditFormState = {
   cashDiscountType: CashDiscountType | "";
   cashDiscountValue: string;
   billingOptions: BillingOptionPayload[];
+  recurringStartMonth: string;
 };
 
 type OfferEditErrors = Partial<
@@ -213,6 +214,7 @@ function createFormState(data: OfferDetail): OfferEditFormState {
       allowed_installments: option.allowed_installments ?? [],
       is_active: option.is_active ?? true,
     })),
+    recurringStartMonth: data.recurring_start_month?.slice(0, 7) ?? "",
   };
 }
 
@@ -408,6 +410,8 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
         price: normalizedPrice,
         payment_mode: derivePaymentMode(billingOptions),
         plan_type: planTypeFromBillingOptions(billingOptions),
+        recurring_start_month: formState.recurringStartMonth
+          ? `${formState.recurringStartMonth}-01` : null,
         allow_cash_discount: formState.allowCashDiscount,
         cash_discount_type: formState.allowCashDiscount ? formState.cashDiscountType || null : null,
         cash_discount_value: formState.allowCashDiscount ? formState.cashDiscountValue : null,
@@ -575,6 +579,12 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
         <Card className="rounded-[2rem] border-border shadow-sm">
           <CardContent className="space-y-4 p-6">
             <SectionHeader icon={CreditCard} eyebrow="Cobranca" title="Opcoes de pagamento" />
+            {data.recurring_start_month && (
+              <p className="text-sm text-muted-foreground">
+                Mensalidades a partir de {data.recurring_start_month.slice(0, 7).split("-").reverse().join("/")}.
+                A matrícula é cobrada no ato; o dia acompanha o pagamento.
+              </p>
+            )}
             {data.billing_options.length === 0 ? (
               <EmptyText>Nenhuma opcao de pagamento configurada.</EmptyText>
             ) : (
@@ -1001,6 +1011,17 @@ function OfferEditView({
                 <Plus className="h-4 w-4" />
                 Adicionar
               </Button>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="recurring-start-month" className="text-sm font-medium text-foreground">
+                Início das mensalidades após a matrícula
+              </label>
+              <Input id="recurring-start-month" type="month" value={formState.recurringStartMonth}
+                onChange={(event) => updateForm({ recurringStartMonth: event.target.value })} />
+              <p className="text-xs text-muted-foreground">
+                O dia acompanha o pagamento da matrícula; no cartão, a primeira cobrança ocorre em até 90 dias.
+              </p>
             </div>
 
             {formState.billingOptions.length === 0 ? (

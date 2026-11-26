@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -22,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useDeleteOrder, useOrderDetails } from "@/features/orders/queries/ordersQueries";
+import { ordersApi } from "@/features/orders/api/ordersApi";
 import { useClassDetails } from "@/features/classes/queries/classesQueries";
 import type {
   OrderDetail,
@@ -29,6 +31,7 @@ import type {
   OrderPayment,
 } from "@/features/orders/types/order";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { cn } from "@/shared/lib/utils";
 
@@ -124,9 +127,21 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
   const returnPath = requestedReturnPath === "/orders" || requestedReturnPath?.startsWith("/orders?")
     ? requestedReturnPath
     : "/orders";
-  const { data, isLoading, isError } = useOrderDetails(orderId);
+  const { data, isLoading, isError, refetch } = useOrderDetails(orderId);
+  const startEnrollment = useMutation({
+    mutationFn: () => ordersApi.startEnrollmentSubscription(orderId),
+    onSuccess: () => { void refetch(); },
+  });
   const deleteOrder = useDeleteOrder();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [checkoutId, setCheckoutId] = useState("");
+  const [allocation, setAllocation] = useState<"part" | "monthly">("part");
+  const linkPayment = useMutation({
+    mutationFn: () => ordersApi.linkAbacatepayPayment(orderId, {
+      external_checkout_id: checkoutId.trim(), allocation,
+    }),
+    onSuccess: () => { setCheckoutId(""); void refetch(); },
+  });
 
   async function handleDelete() {
     try {
@@ -204,6 +219,56 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
           >
             Abrir checkout <ExternalLink className="h-4 w-4" />
           </a>
+        </div>
+      )}
+
+      <form className="space-y-4 rounded-lg border border-border bg-card p-4" onSubmit={(event) => {
+        event.preventDefault();
+        if (/^bill_[A-Za-z0-9_-]+$/.test(checkoutId.trim())) linkPayment.mutate();
+      }}>
+        <h2 className="font-semibold">Associar cobrança AbacatePay</h2>
+        <p className="text-sm text-muted-foreground">É possível associar mais de uma cobrança a este pedido. Cada ID só pode pertencer a um pedido.</p>
+        <label htmlFor="order-checkout-id" className="block text-sm font-medium">ID da cobrança</label>
+        <Input id="order-checkout-id" value={checkoutId} onChange={(event) => setCheckoutId(event.target.value)} placeholder="bill_..." required />
+        <label htmlFor="order-payment-allocation" className="block text-sm font-medium">Este pagamento é</label>
+        <select id="order-payment-allocation" value={allocation} onChange={(event) => setAllocation(event.target.value as "part" | "monthly")}
+          className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm">
+          <option value="part">Parte do pagamento do pedido</option>
+          <option value="monthly">Uma mensalidade</option>
+        </select>
+        {linkPayment.isError && <p role="alert" className="text-sm text-destructive">
+          {linkPayment.error instanceof Error ? linkPayment.error.message : "Não foi possível associar a cobrança."}
+        </p>}
+        {linkPayment.isSuccess && <p role="status" className="text-sm text-success">Cobrança associada ao pedido.</p>}
+        <Button type="submit" disabled={linkPayment.isPending || !/^bill_[A-Za-z0-9_-]+$/.test(checkoutId.trim())}>
+          {linkPayment.isPending ? "Consultando AbacatePay..." : "Associar cobrança"}
+        </Button>
+      </form>
+
+      {data.enrollment_recurring_option && (
+        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+          <p className="font-semibold">{data.first_monthly ? "Primeira mensalidade avulsa + 11 mensalidades no cartão" : "Matrícula + 11 mensalidades"}</p>
+          <p className="text-sm text-muted-foreground">
+            {data.first_monthly ? "Primeira mensalidade" : "Matrícula"}: {formatCurrency(data.amount_due)} · Mensalidade: {formatCurrency(data.enrollment_monthly_amount)} · Pagas: {data.enrollment_paid_cycles}/11.
+            {data.enrollment_first_due_date && ` Início previsto: ${data.enrollment_first_due_date.split("-").reverse().join("/")}.`}
+          </p>
+          {data.enrollment_checkout_url ? (
+            <a href={data.enrollment_checkout_url} target="_blank" rel="noopener noreferrer"
+              className="text-sm text-primary underline">Abrir checkout da assinatura</a>
+          ) : data.status === "active" ? (
+            <Button type="button" disabled={startEnrollment.isPending}
+              onClick={() => startEnrollment.mutate()}>
+              {startEnrollment.isPending ? "Preparando assinatura..." : "Gerar checkout da assinatura"}
+            </Button>
+          ) : (
+            <p className="text-sm">O checkout da assinatura ficará disponível após o pagamento da {data.first_monthly ? "primeira mensalidade" : "matrícula"}.</p>
+          )}
+          {startEnrollment.isError && <p role="alert" className="text-sm text-destructive">
+            {startEnrollment.error instanceof Error ? startEnrollment.error.message : "Não foi possível iniciar a assinatura."}
+          </p>}
+          <p className="text-xs text-muted-foreground">
+            {data.first_monthly ? "Após a primeira mensalidade, o aluno deve autorizar o cartão no segundo checkout para as cobranças seguintes." : "No cartão, o aluno deve cadastrar o cartão no segundo checkout. No Pix, deve autorizar o Pix Automático no mês inicial."}
+          </p>
         </div>
       )}
 

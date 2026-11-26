@@ -68,6 +68,7 @@ export type OrderOffer = {
   is_active: boolean;
   plan_type: string | null;
   billing_interval_months: number | null;
+  recurring_start_month: string | null;
   allow_cash_discount: boolean;
   cash_discount_type: string | null;
   cash_discount_value: string | null;
@@ -144,6 +145,7 @@ export type OrderBillingSubscription = {
 
 export type OrderDetail = {
   checkout_url?: string | null;
+  first_monthly?: boolean;
   id: number;
   user: OrderUser;
   offer: OrderOffer;
@@ -175,6 +177,14 @@ export type OrderDetail = {
   gateway_payments: OrderGatewayPayment[];
   asaas_payments: OrderGatewayPayment[];
   billing_subscription: OrderBillingSubscription;
+  enrollment_recurring_option: number | null;
+  enrollment_monthly_amount: string | null;
+  enrollment_billing_method: string;
+  enrollment_start_month: string | null;
+  enrollment_first_due_date: string | null;
+  enrollment_checkout_id: string;
+  enrollment_checkout_url: string;
+  enrollment_paid_cycles: number;
   created_at: string;
   updated_at: string;
 };

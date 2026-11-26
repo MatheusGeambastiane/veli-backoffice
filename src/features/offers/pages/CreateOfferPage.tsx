@@ -94,6 +94,7 @@ type OfferFormState = {
   price: string;
   accessDurationDays: string;
   planType: OfferPlanType | "";
+  recurringStartMonth: string;
   gracePeriodDays: string;
   courseId: number | "";
   studentClassIds: number[];
@@ -122,6 +123,7 @@ const DEFAULT_FORM: OfferFormState = {
   price: "",
   accessDurationDays: "",
   planType: "",
+  recurringStartMonth: "",
   gracePeriodDays: "",
   courseId: "",
   studentClassIds: [],
@@ -405,6 +407,8 @@ export function CreateOfferPage() {
         payment_mode: formState.paymentModes,
         allow_cash_discount: false,
         plan_type: hasRecurringBillingOption ? formState.planType : null,
+        recurring_start_month: hasRecurringBillingOption && formState.recurringStartMonth
+          ? `${formState.recurringStartMonth}-01` : null,
         billing_options: formState.billingOptions,
       });
       router.push("/offers");
@@ -676,6 +680,16 @@ export function CreateOfferPage() {
 
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">Selecao de pagamento</label>
+                <div className="space-y-2">
+                  <label htmlFor="recurring-start-month" className="text-sm font-medium text-foreground">
+                    Início das mensalidades (matrícula cobrada agora)
+                  </label>
+                  <Input id="recurring-start-month" type="month" value={formState.recurringStartMonth}
+                    onChange={(event) => setFormState((current) => ({ ...current, recurringStartMonth: event.target.value }))} />
+                  <p className="text-xs text-muted-foreground">
+                    O dia será o do pagamento da matrícula. No cartão, o primeiro débito ocorrerá em até 90 dias.
+                  </p>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
                     type="button"

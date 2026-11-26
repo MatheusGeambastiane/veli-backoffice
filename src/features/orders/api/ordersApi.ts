@@ -14,6 +14,8 @@ export const ordersApi = {
     billing_option: number;
     amount_due: string;
     gateway_choice: string;
+    enrollment_recurring_option?: number;
+    external_checkout_id?: string;
   }) =>
     httpClient.post<{ order_id: number; checkout_url: string; gateway: string }>(
       "/dashboard/orders/create-checkout/",
@@ -59,5 +61,11 @@ export const ordersApi = {
     return httpClient.get<OrderListResponse>(path);
   },
   details: (id: string) => httpClient.get<OrderDetail>(`/dashboard/orders/${id}/`),
+  linkAbacatepayPayment: (id: string, payload: { external_checkout_id: string; allocation: "part" | "monthly" }) =>
+    httpClient.post<{ checkout_url: string }>(`/dashboard/orders/${id}/link-abacatepay-payment/`, payload),
+  startEnrollmentSubscription: (id: string) =>
+    httpClient.post<{ checkout_url: string; first_due_date: string }>(
+      `/dashboard/orders/${id}/start-enrollment-subscription/`, {},
+    ),
   delete: (id: string) => httpClient.delete<void>(`/dashboard/orders/${id}/`),
 };
