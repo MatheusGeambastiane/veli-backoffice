@@ -6,12 +6,12 @@ import type { CouponPayload } from "@/features/coupons/types/coupon";
 
 const couponsKey = ["coupons"] as const;
 
-export function useCoupons(search: string) {
+export function useCoupons(search: string, enabled = true) {
   const { status } = useSession();
   return useQuery({
-    queryKey: [...couponsKey, search],
+    queryKey: [...couponsKey, "list", search],
     queryFn: () => couponsApi.list(search),
-    enabled: status === "authenticated",
+    enabled: enabled && status === "authenticated",
     placeholderData: (previous) => previous,
   });
 }
@@ -60,5 +60,23 @@ export function useUpdateCoupon() {
     mutationFn: ({ id, payload }: { id: number; payload: Partial<CouponPayload> }) =>
       couponsApi.update(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: couponsKey }),
+  });
+}
+
+export function useCouponDetail(id: number) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: [...couponsKey, "detail", id],
+    queryFn: () => couponsApi.detail(id),
+    enabled: status === "authenticated",
+  });
+}
+
+export function useCouponUsage(id: number, page: number) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: [...couponsKey, "uses", id, page],
+    queryFn: () => couponsApi.uses(id, page),
+    enabled: status === "authenticated",
   });
 }

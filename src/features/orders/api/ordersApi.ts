@@ -1,6 +1,7 @@
 import { httpClient } from "@/shared/lib/http/http";
 import type {
   OrderDetail,
+  OrderGatewayPayment,
   OrderListParams,
   OrderListResponse,
 } from "@/features/orders/types/order";
@@ -61,10 +62,19 @@ export const ordersApi = {
     return httpClient.get<OrderListResponse>(path);
   },
   details: (id: string) => httpClient.get<OrderDetail>(`/dashboard/orders/${id}/`),
-  linkAbacatepayPayment: (id: string, payload: { external_checkout_id: string; allocation: "part" | "monthly" }) =>
-    httpClient.post<{ checkout_url: string }>(`/dashboard/orders/${id}/link-abacatepay-payment/`, payload),
+  verifyGatewayPayment: (orderId: string, paymentId: number) =>
+    httpClient.post<OrderGatewayPayment>(
+      `/dashboard/orders/${orderId}/gateway-payments/${paymentId}/verify/`,
+      {},
+    ),
+  linkGatewayPayment: (id: string, payload: {
+    gateway_choice: "abacatepay" | "stripe";
+    external_checkout_id: string;
+    allocation: "part" | "monthly";
+    confirmation?: { amount: string; excess: string };
+  }) => httpClient.post<OrderGatewayPayment>(`/dashboard/orders/${id}/link-gateway-payment/`, payload),
   startEnrollmentSubscription: (id: string) =>
-    httpClient.post<{ checkout_url: string; first_due_date: string }>(
+    httpClient.post<{ checkout_url?: string; schedule_id?: string; first_due_date: string }>(
       `/dashboard/orders/${id}/start-enrollment-subscription/`, {},
     ),
   delete: (id: string) => httpClient.delete<void>(`/dashboard/orders/${id}/`),

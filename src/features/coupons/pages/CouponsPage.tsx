@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { CouponDetails } from "./CouponDetails";
 import { useDeferredValue, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Check, Loader2, Pencil, Plus, Search, TicketPercent, X } from "lucide-react";
 import {
@@ -37,7 +39,7 @@ function couponOfferIds(coupon: Coupon) {
   return coupon.offers ?? (coupon.offer ? [coupon.offer] : []);
 }
 
-export function CouponsPage() {
+export function CouponsPage({ couponId }: { couponId?: number }) {
   const createDialog = useRef<HTMLDialogElement>(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(initialForm);
@@ -47,7 +49,7 @@ export function CouponsPage() {
     null,
   );
   const deferredSearch = useDeferredValue(search.trim());
-  const coupons = useCoupons(deferredSearch);
+  const coupons = useCoupons(deferredSearch, couponId === undefined);
   const offers = useCouponOffers();
   const createCoupon = useCreateCoupon();
   const toggleCoupon = useToggleCoupon();
@@ -142,7 +144,7 @@ export function CouponsPage() {
 
   return (
     <section className="space-y-6">
-      <PageHeader
+      {couponId ? <CouponDetails id={couponId} onEdit={openEdit} /> : <PageHeader
         title="Cupons"
         description="Crie descontos por oferta e acompanhe o consumo de cada código."
         actions={
@@ -162,7 +164,7 @@ export function CouponsPage() {
             </Button>
           </div>
         }
-      />
+      />}
 
       {feedback?.kind === "success" ? (
         <p role="status" className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -349,7 +351,7 @@ export function CouponsPage() {
         </form>
       </dialog>
 
-      <div className="space-y-4">
+      {!couponId && <div className="space-y-4">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -390,9 +392,9 @@ export function CouponsPage() {
                   className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_1.4fr_.8fr_.8fr_auto] md:items-center"
                 >
                   <div>
-                    <span className="rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1 font-mono text-sm font-semibold text-primary">
+                    <Link href={`/coupons/${coupon.id}`} className="hover:underline rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1 font-mono text-sm font-semibold text-primary">
                       {coupon.code}
-                    </span>
+                    </Link>
                   </div>
                   <p className="text-sm font-medium">
                     {(coupon.offer_names ?? (coupon.offer_name ? [coupon.offer_name] : [])).join(
@@ -454,7 +456,7 @@ export function CouponsPage() {
             })}
           </ul>
         </DataSurface>
-      </div>
+      </div>}
     </section>
   );
 }

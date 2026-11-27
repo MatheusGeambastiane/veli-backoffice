@@ -66,16 +66,22 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
   });
 
   if (!response.ok) {
-    let details: unknown = undefined;
+    const responseBody = await response.text();
+    let details: unknown = responseBody || undefined;
     try {
-      details = await response.json();
+      details = responseBody ? JSON.parse(responseBody) : undefined;
     } catch {
-      details = await response.text();
+      // Keep non-JSON error responses as text without reading the stream twice.
     }
+
+    const message = typeof details === "object" && details !== null && "detail" in details
+      && typeof details.detail === "string"
+      ? details.detail
+      : "Request failed";
 
     throw new HttpError({
       status: response.status,
-      message: "Request failed",
+      message,
       details,
     });
   }

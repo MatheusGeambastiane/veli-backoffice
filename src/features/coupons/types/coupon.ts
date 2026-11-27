@@ -33,3 +33,20 @@ export type CouponPayload = {
   starts_at: string | null;
   ends_at: string | null;
 };
+
+export type CouponDetail = Coupon & {
+  usage_by_offer: { id: number; name: string; uses: number }[];
+};
+
+export type CouponUsagePage = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: {
+    id: number;
+    invoice_id: number | null;
+    order_number: number | null;
+    offer_name: string;
+    used_at: string;
+  }[];
+};

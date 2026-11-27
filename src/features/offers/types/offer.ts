@@ -98,6 +98,7 @@ export type OfferDetail = {
   plan_type: "one_time" | "monthly" | string;
   billing_interval_months: number | null;
   recurring_start_month: string | null;
+  stripe_recurring_start_month: string | null;
   allow_cash_discount: boolean;
   cash_discount_type: string | null;
   cash_discount_value: string | null;
@@ -159,6 +160,7 @@ export type CreateOfferPayload = {
   allow_cash_discount: boolean;
   plan_type: OfferPlanType | null;
   recurring_start_month: string | null;
+  stripe_recurring_start_month: string | null;
   billing_options: BillingOptionPayload[];
 };
 
@@ -171,6 +173,7 @@ export type UpdateOfferPayload = {
   payment_mode: PaymentMode[];
   plan_type: "one_time" | "monthly";
   recurring_start_month: string | null;
+  stripe_recurring_start_month: string | null;
   allow_cash_discount: boolean;
   cash_discount_type: "fixed" | "percent" | null;
   cash_discount_value: string | null;

@@ -7,6 +7,7 @@ import { offersApi } from "@/features/offers/api/offersApi";
 import { usersApi } from "@/features/users/api/usersApi";
 import type { DashboardUser } from "@/features/users/types/dashboardUser";
 import { ordersApi } from "@/features/orders/api/ordersApi";
+import { isAbacatePayChargeId } from "@/features/orders/lib/abacatepay";
 import { ordersKeys } from "@/features/orders/queries/ordersQueries";
 import { HttpError } from "@/shared/lib/http/http";
 import { Button } from "@/shared/components/ui/button";
@@ -92,8 +93,10 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
       (item) => item.type === "one_time" && item.is_active !== false,
     ) ?? [];
   const option = options.find((item) => String(item.id) === optionId);
-  const monthlyOption = offer.data?.recurring_start_month && gateways.data?.includes("abacatepay")
-    ? offer.data.billing_options.find((item) => item.type === "recurring" && item.is_active !== false
+  const recurringStartMonth = gateway === "stripe"
+    ? offer.data?.stripe_recurring_start_month : offer.data?.recurring_start_month;
+  const monthlyOption = recurringStartMonth && gateways.data?.includes(gateway)
+    ? offer.data?.billing_options.find((item) => item.type === "recurring" && item.is_active !== false
         && item.billing_method === "credit_card")
     : undefined;
   const original = Number(option?.price ?? 0);
@@ -102,11 +105,11 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
     user &&
     option &&
     gateway &&
-    (!includeMonthly || (monthlyOption && gateway === "abacatepay")) &&
+    (!includeMonthly || monthlyOption) &&
     finalAmount > 0 &&
     finalAmount <= original &&
     offer.data?.is_active &&
-    (checkoutSource === "new" || /^bill_[A-Za-z0-9_-]+$/.test(externalCheckoutId.trim())),
+    (checkoutSource === "new" || isAbacatePayChargeId(externalCheckoutId)),
   );
   const create = useMutation({
     mutationFn: ordersApi.createCheckout,
@@ -276,12 +279,12 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
                     required
                     value={externalCheckoutId}
                     onChange={(event) => setExternalCheckoutId(event.target.value)}
-                    placeholder="bill_..."
+                    placeholder="bill_, char_, pix_char_ ou card_"
                     autoComplete="off"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Informe o ID iniciado por bill_. O link, o valor e o status serão consultados
-                    diretamente no AbacatePay.
+                    Informe o ID da cobrança iniciado por bill_, char_, pix_char_ ou card_. O link,
+                    o valor e o status serão consultados diretamente no AbacatePay.
                   </p>
                 </div>
               )}
@@ -357,14 +360,15 @@ export function CreateOrderDialog({ onClose }: { onClose: () => void }) {
                   <input type="checkbox" checked={includeMonthly}
                     onChange={(event) => {
                       setIncludeMonthly(event.target.checked);
-                      if (event.target.checked) setGateway("abacatepay");
                     }} />
-                  Primeira mensalidade avulsa + 11 mensalidades no cartão de {money(Number(monthlyOption.price))}
+                  Primeira cobrança agora + 11 mensalidades no cartão de {money(Number(monthlyOption.price))}
                 </label>
               )}
               <p className="text-xs text-muted-foreground">
                 {includeMonthly
-                  ? "A primeira mensalidade pode ser paga por Pix ou cartão. Após o pagamento, o aluno autoriza no cartão as cobranças seguintes."
+                  ? gateway === "stripe" && option?.billing_method === "credit_card"
+                    ? `Um checkout cobra a entrada e salva o cartão para 11 mensalidades a partir de ${recurringStartMonth?.split("-").reverse().join("/")}.`
+                    : `A entrada é paga agora. Depois, o aluno autoriza o cartão em outro checkout para 11 mensalidades a partir de ${recurringStartMonth?.split("-").reverse().join("/")}.${gateway === "abacatepay" ? " O prazo é limitado a 90 dias." : ""}`
                   : "Cobrança única, sem renovação automática."}
               </p>
               {offer.data && !options.length && (

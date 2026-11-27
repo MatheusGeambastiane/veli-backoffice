@@ -146,6 +146,7 @@ export type OrderBillingSubscription = {
 export type OrderDetail = {
   checkout_url?: string | null;
   first_monthly?: boolean;
+  immediate_subscription?: boolean;
   id: number;
   user: OrderUser;
   offer: OrderOffer;
@@ -184,6 +185,7 @@ export type OrderDetail = {
   enrollment_first_due_date: string | null;
   enrollment_checkout_id: string;
   enrollment_checkout_url: string;
+  enrollment_schedule_id: string;
   enrollment_paid_cycles: number;
   created_at: string;
   updated_at: string;
