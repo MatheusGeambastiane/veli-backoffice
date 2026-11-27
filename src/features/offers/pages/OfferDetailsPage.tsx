@@ -69,6 +69,7 @@ type OfferEditFormState = {
   cashDiscountValue: string;
   billingOptions: BillingOptionPayload[];
   recurringStartMonth: string;
+  stripeRecurringStartMonth: string;
 };
 
 type OfferEditErrors = Partial<
@@ -215,6 +216,7 @@ function createFormState(data: OfferDetail): OfferEditFormState {
       is_active: option.is_active ?? true,
     })),
     recurringStartMonth: data.recurring_start_month?.slice(0, 7) ?? "",
+    stripeRecurringStartMonth: data.stripe_recurring_start_month?.slice(0, 7) ?? "",
   };
 }
 
@@ -412,6 +414,8 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
         plan_type: planTypeFromBillingOptions(billingOptions),
         recurring_start_month: formState.recurringStartMonth
           ? `${formState.recurringStartMonth}-01` : null,
+        stripe_recurring_start_month: formState.stripeRecurringStartMonth
+          ? `${formState.stripeRecurringStartMonth}-01` : null,
         allow_cash_discount: formState.allowCashDiscount,
         cash_discount_type: formState.allowCashDiscount ? formState.cashDiscountType || null : null,
         cash_discount_value: formState.allowCashDiscount ? formState.cashDiscountValue : null,
@@ -581,8 +585,14 @@ export function OfferDetailsPage({ offerId }: OfferDetailsPageProps) {
             <SectionHeader icon={CreditCard} eyebrow="Cobranca" title="Opcoes de pagamento" />
             {data.recurring_start_month && (
               <p className="text-sm text-muted-foreground">
-                Mensalidades a partir de {data.recurring_start_month.slice(0, 7).split("-").reverse().join("/")}.
+                AbacatePay: mensalidades a partir de {data.recurring_start_month.slice(0, 7).split("-").reverse().join("/")}.
                 A matrícula é cobrada no ato; o dia acompanha o pagamento.
+              </p>
+            )}
+            {data.stripe_recurring_start_month && (
+              <p className="text-sm text-muted-foreground">
+                Stripe: mensalidades a partir de {data.stripe_recurring_start_month.slice(0, 7).split("-").reverse().join("/")}.
+                O aluno paga a primeira cobrança no ato e autoriza o cartão para as 11 seguintes.
               </p>
             )}
             {data.billing_options.length === 0 ? (
@@ -1015,12 +1025,20 @@ function OfferEditView({
 
             <div className="space-y-2">
               <label htmlFor="recurring-start-month" className="text-sm font-medium text-foreground">
-                Início das mensalidades após a matrícula
+                AbacatePay: início das mensalidades
               </label>
               <Input id="recurring-start-month" type="month" value={formState.recurringStartMonth}
                 onChange={(event) => updateForm({ recurringStartMonth: event.target.value })} />
               <p className="text-xs text-muted-foreground">
                 O dia acompanha o pagamento da matrícula; no cartão, a primeira cobrança ocorre em até 90 dias.
+              </p>
+              <label htmlFor="stripe-recurring-start-month" className="text-sm font-medium text-foreground">
+                Stripe: início das mensalidades
+              </label>
+              <Input id="stripe-recurring-start-month" type="month" value={formState.stripeRecurringStartMonth}
+                onChange={(event) => updateForm({ stripeRecurringStartMonth: event.target.value })} />
+              <p className="text-xs text-muted-foreground">
+                A Stripe agenda 11 mensalidades após a autorização do cartão, sem limite de 90 dias.
               </p>
             </div>
 

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import { HttpError } from "@/shared/lib/http/http";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,6 +19,7 @@ import {
   Loader2,
   Mail,
   PackageOpen,
+  RefreshCw,
   ReceiptText,
   ShieldCheck,
   Trash2,
@@ -24,6 +27,10 @@ import {
 } from "lucide-react";
 import { useDeleteOrder, useOrderDetails } from "@/features/orders/queries/ordersQueries";
 import { ordersApi } from "@/features/orders/api/ordersApi";
+import {
+  isAbacatePayChargeId,
+  isStripePaymentIntentId,
+} from "@/features/orders/lib/abacatepay";
 import { useClassDetails } from "@/features/classes/queries/classesQueries";
 import type {
   OrderDetail,
@@ -44,6 +51,37 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
   minimumFractionDigits: 2,
 });
+
+const overpaymentWarning = z.object({
+  code: z.literal("payment_exceeds_balance"),
+  amount: z.string(),
+  balance: z.string(),
+  excess: z.string(),
+});
+
+function OverpaymentDialog({ warning, onCancel, onConfirm }: {
+  warning: z.infer<typeof overpaymentWarning>;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
+  return (
+    <dialog ref={dialog} aria-labelledby="overpayment-title" onCancel={onCancel}
+      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md space-y-4 rounded-xl border border-border bg-card p-6 text-foreground backdrop:bg-black/50">
+      <h2 id="overpayment-title" className="text-lg font-semibold">Cobrança acima do saldo</h2>
+      <p>O saldo disponível é {formatCurrency(warning.balance)}. Ao associar a cobrança de {formatCurrency(warning.amount)}, o valor vinculado excederá o saldo em <strong>{formatCurrency(warning.excess)}</strong>.</p>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+        <Button type="button" onClick={onConfirm}>Confirmar</Button>
+      </div>
+    </dialog>
+  );
+}
 
 const STATUS_LABELS: Record<string, string> = {
   waiting_payment: "Aguardando pagamento",
@@ -124,7 +162,7 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedReturnPath = searchParams.get("returnTo");
-  const returnPath = requestedReturnPath === "/orders" || requestedReturnPath?.startsWith("/orders?")
+  const returnPath = requestedReturnPath === "/orders" || requestedReturnPath?.startsWith("/orders?") || (requestedReturnPath !== null && /^\/coupons\/\d+$/.test(requestedReturnPath))
     ? requestedReturnPath
     : "/orders";
   const { data, isLoading, isError, refetch } = useOrderDetails(orderId);
@@ -134,14 +172,24 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
   });
   const deleteOrder = useDeleteOrder();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [associationGateway, setAssociationGateway] = useState<"abacatepay" | "stripe">("abacatepay");
   const [checkoutId, setCheckoutId] = useState("");
   const [allocation, setAllocation] = useState<"part" | "monthly">("part");
   const linkPayment = useMutation({
-    mutationFn: () => ordersApi.linkAbacatepayPayment(orderId, {
-      external_checkout_id: checkoutId.trim(), allocation,
-    }),
+    mutationFn: (payload: Parameters<typeof ordersApi.linkGatewayPayment>[1]) =>
+      ordersApi.linkGatewayPayment(orderId, payload),
     onSuccess: () => { setCheckoutId(""); void refetch(); },
   });
+  const warning = linkPayment.error instanceof HttpError && linkPayment.error.status === 409
+    ? overpaymentWarning.safeParse(linkPayment.error.details).data
+    : undefined;
+  const verifyGatewayPayment = useMutation({
+    mutationFn: (paymentId: number) => ordersApi.verifyGatewayPayment(orderId, paymentId),
+    onSuccess: () => { void refetch(); },
+  });
+  const hasValidAssociationId = associationGateway === "stripe"
+    ? isStripePaymentIntentId(checkoutId)
+    : isAbacatePayChargeId(checkoutId);
 
   async function handleDelete() {
     try {
@@ -172,7 +220,7 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
         <Link href={returnPath}>
           <Button type="button" variant="outline">
             <ArrowLeft className="h-4 w-4" />
-            Voltar para pedidos
+            {returnPath.startsWith("/coupons/") ? "Voltar para o cupom" : "Voltar para pedidos"}
           </Button>
         </Link>
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm text-destructive">
@@ -224,41 +272,78 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
 
       <form className="space-y-4 rounded-lg border border-border bg-card p-4" onSubmit={(event) => {
         event.preventDefault();
-        if (/^bill_[A-Za-z0-9_-]+$/.test(checkoutId.trim())) linkPayment.mutate();
+        if (hasValidAssociationId && !linkPayment.isPending) linkPayment.mutate({
+          gateway_choice: associationGateway, external_checkout_id: checkoutId.trim(), allocation,
+        });
       }}>
-        <h2 className="font-semibold">Associar cobrança AbacatePay</h2>
+        <h2 className="font-semibold">Associar cobrança</h2>
         <p className="text-sm text-muted-foreground">É possível associar mais de uma cobrança a este pedido. Cada ID só pode pertencer a um pedido.</p>
+        <label htmlFor="order-payment-gateway" className="block text-sm font-medium">Gateway</label>
+        <select
+          id="order-payment-gateway" disabled={linkPayment.isPending}
+          value={associationGateway}
+          onChange={(event) => {
+            setAssociationGateway(event.target.value as "abacatepay" | "stripe");
+            setCheckoutId("");
+            linkPayment.reset();
+          }}
+          className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
+        >
+          <option value="abacatepay">AbacatePay</option>
+          <option value="stripe">Stripe</option>
+        </select>
         <label htmlFor="order-checkout-id" className="block text-sm font-medium">ID da cobrança</label>
-        <Input id="order-checkout-id" value={checkoutId} onChange={(event) => setCheckoutId(event.target.value)} placeholder="bill_..." required />
+        <Input
+          id="order-checkout-id" disabled={linkPayment.isPending}
+          value={checkoutId}
+          onChange={(event) => setCheckoutId(event.target.value)}
+          placeholder={associationGateway === "stripe" ? "pi_..." : "bill_, char_, pix_char_ ou card_"}
+          required
+        />
         <label htmlFor="order-payment-allocation" className="block text-sm font-medium">Este pagamento é</label>
-        <select id="order-payment-allocation" value={allocation} onChange={(event) => setAllocation(event.target.value as "part" | "monthly")}
+        <select id="order-payment-allocation" disabled={linkPayment.isPending} value={allocation} onChange={(event) => setAllocation(event.target.value as "part" | "monthly")}
           className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm">
           <option value="part">Parte do pagamento do pedido</option>
           <option value="monthly">Uma mensalidade</option>
         </select>
-        {linkPayment.isError && <p role="alert" className="text-sm text-destructive">
+        {linkPayment.isError && !warning && <p role="alert" className="text-sm text-destructive">
           {linkPayment.error instanceof Error ? linkPayment.error.message : "Não foi possível associar a cobrança."}
         </p>}
         {linkPayment.isSuccess && <p role="status" className="text-sm text-success">Cobrança associada ao pedido.</p>}
-        <Button type="submit" disabled={linkPayment.isPending || !/^bill_[A-Za-z0-9_-]+$/.test(checkoutId.trim())}>
-          {linkPayment.isPending ? "Consultando AbacatePay..." : "Associar cobrança"}
+        <Button type="submit" disabled={linkPayment.isPending || !hasValidAssociationId}>
+          {linkPayment.isPending ? `Consultando ${associationGateway === "stripe" ? "Stripe" : "AbacatePay"}...` : "Associar cobrança"}
         </Button>
       </form>
 
+      {warning && linkPayment.variables && (
+        <OverpaymentDialog
+          warning={warning}
+          onCancel={() => linkPayment.reset()}
+          onConfirm={() => linkPayment.mutate({
+            ...linkPayment.variables!, confirmation: { amount: warning.amount, excess: warning.excess },
+          })}
+        />
+      )}
+
       {data.enrollment_recurring_option && (
         <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <p className="font-semibold">{data.first_monthly ? "Primeira mensalidade avulsa + 11 mensalidades no cartão" : "Matrícula + 11 mensalidades"}</p>
+          <p className="font-semibold">{data.immediate_subscription ? "Assinatura no cartão · 12 mensalidades" : data.first_monthly ? "Primeira mensalidade avulsa + 11 mensalidades no cartão" : "Matrícula + 11 mensalidades"}</p>
           <p className="text-sm text-muted-foreground">
             {data.first_monthly ? "Primeira mensalidade" : "Matrícula"}: {formatCurrency(data.amount_due)} · Mensalidade: {formatCurrency(data.enrollment_monthly_amount)} · Pagas: {data.enrollment_paid_cycles}/11.
             {data.enrollment_first_due_date && ` Início previsto: ${data.enrollment_first_due_date.split("-").reverse().join("/")}.`}
           </p>
-          {data.enrollment_checkout_url ? (
+          {data.immediate_subscription && data.status === "active" ? (
+            <p className="text-sm">Primeiro pagamento confirmado no checkout da assinatura.</p>
+          ) : data.enrollment_schedule_id ? (
+            <p className="text-sm">As 11 mensalidades estão agendadas na Stripe.</p>
+          ) : data.enrollment_checkout_url ? (
             <a href={data.enrollment_checkout_url} target="_blank" rel="noopener noreferrer"
               className="text-sm text-primary underline">Abrir checkout da assinatura</a>
           ) : data.status === "active" ? (
             <Button type="button" disabled={startEnrollment.isPending}
               onClick={() => startEnrollment.mutate()}>
-              {startEnrollment.isPending ? "Preparando assinatura..." : "Gerar checkout da assinatura"}
+              {startEnrollment.isPending ? "Preparando assinatura..." : data.gateways.includes("stripe") && data.payment_type === "credit"
+                ? "Agendar mensalidades na Stripe" : "Gerar checkout da assinatura"}
             </Button>
           ) : (
             <p className="text-sm">O checkout da assinatura ficará disponível após o pagamento da {data.first_monthly ? "primeira mensalidade" : "matrícula"}.</p>
@@ -267,7 +352,11 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
             {startEnrollment.error instanceof Error ? startEnrollment.error.message : "Não foi possível iniciar a assinatura."}
           </p>}
           <p className="text-xs text-muted-foreground">
-            {data.first_monthly ? "Após a primeira mensalidade, o aluno deve autorizar o cartão no segundo checkout para as cobranças seguintes." : "No cartão, o aluno deve cadastrar o cartão no segundo checkout. No Pix, deve autorizar o Pix Automático no mês inicial."}
+            {data.immediate_subscription ? "O primeiro pagamento cria a assinatura no AbacatePay. As próximas 11 mensalidades começam no mês seguinte." : data.gateways.includes("stripe")
+              ? data.payment_type === "credit"
+                ? "A Stripe cobra a entrada e salva o mesmo cartão em um checkout. As 11 mensalidades são agendadas após a confirmação."
+                : "Com entrada por Pix, o aluno cadastra o cartão no segundo checkout da Stripe. As 11 mensalidades começam no mês configurado."
+              : "Após a primeira cobrança, o aluno autoriza o cartão no segundo checkout AbacatePay. O teste é limitado a 90 dias."}
           </p>
         </div>
       )}
@@ -275,7 +364,13 @@ export function OrderDetailsPage({ orderId }: OrderDetailsPageProps) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <div className="space-y-6">
           <RequestCard order={data} />
-          <PaymentsCard payments={data.payments} gatewayPayments={gatewayPayments} />
+          <PaymentsCard
+            payments={data.payments}
+            gatewayPayments={gatewayPayments}
+            verifyingPaymentId={verifyGatewayPayment.isPending ? verifyGatewayPayment.variables : undefined}
+            verificationError={verifyGatewayPayment.isError ? verifyGatewayPayment.error : null}
+            onVerify={(paymentId) => verifyGatewayPayment.mutate(paymentId)}
+          />
         </div>
         <div className="space-y-6">
           <ChosenClassCard order={data} />
@@ -485,7 +580,19 @@ function OfferCard({ order }: { order: OrderDetail }) {
   );
 }
 
-function PaymentsCard({ payments, gatewayPayments }: { payments: OrderPayment[]; gatewayPayments: OrderGatewayPayment[] }) {
+function PaymentsCard({
+  payments,
+  gatewayPayments,
+  verifyingPaymentId,
+  verificationError,
+  onVerify,
+}: {
+  payments: OrderPayment[];
+  gatewayPayments: OrderGatewayPayment[];
+  verifyingPaymentId?: number;
+  verificationError: Error | null;
+  onVerify: (paymentId: number) => void;
+}) {
   const hasPayments = payments.length > 0 || gatewayPayments.length > 0;
 
   return (
@@ -506,7 +613,27 @@ function PaymentsCard({ payments, gatewayPayments }: { payments: OrderPayment[];
                     {label(payment.gateway)} · {label(payment.billing_method)} · {label(payment.origin)}
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground">{formatDateTime(payment.paid_at ?? payment.created_at)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">{formatDateTime(payment.paid_at ?? payment.created_at)}</p>
+                  {payment.gateway_charge_id && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={typeof verifyingPaymentId === "number"}
+                      onClick={() => onVerify(payment.id)}
+                    >
+                      {verifyingPaymentId === payment.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      {verifyingPaymentId === payment.id
+                        ? "Verificando..."
+                        : `Verificar no ${label(payment.gateway)}`}
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="mt-3 grid gap-2 border-t border-border/70 pt-3 text-xs text-muted-foreground sm:grid-cols-2">
                 <span>ID do gateway: <strong className="font-medium text-foreground">{payment.gateway_charge_id ?? "-"}</strong></span>
@@ -514,6 +641,11 @@ function PaymentsCard({ payments, gatewayPayments }: { payments: OrderPayment[];
               </div>
             </div>
           ))}
+          {verificationError && (
+            <p role="alert" className="text-sm text-destructive">
+              {verificationError.message || "Não foi possível verificar o pagamento no gateway."}
+            </p>
+          )}
           {payments.map((payment) => (
             <div key={`payment-${payment.id}`} className="rounded-2xl border border-border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
